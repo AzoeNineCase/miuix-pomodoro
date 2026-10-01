@@ -18,6 +18,7 @@ import platform.AudioToolbox.AudioServicesPlaySystemSound
 import platform.Foundation.NSData
 import platform.Foundation.NSURL
 import platform.Foundation.NSUserDefaults
+import platform.Foundation.dataWithContentsOfURL
 import platform.UIKit.UIApplication
 import platform.posix.memcpy
 
