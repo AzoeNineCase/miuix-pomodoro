@@ -11,3 +11,11 @@ Thumbs.db
 
 # miuix 官方各平台预览包（本地参考资料，不入库）
 /miuix/
+
+# 构建输出（CI 的 Package 步骤与本地打包都会落在仓库根目录）
+/dist/
+/android/build/
+/android/app/build/
+/android/.gradle/
+/android/.kotlin/
+/android/local.properties
