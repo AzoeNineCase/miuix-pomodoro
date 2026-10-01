@@ -20,6 +20,8 @@ data class AppColors(
     val dark: Boolean,
     /** 极光主题：页面自带渐变背景、卡片为毛玻璃 */
     val aurora: Boolean,
+    /** 背景图激活：卡片/分段等切毛玻璃（对应网页 html[data-bg-active]） */
+    val bgActive: Boolean = false,
 
     val primary: Color,
     val onPrimary: Color,
@@ -86,18 +88,16 @@ private val AuroraColors = AppColors(
     shadow = Color(0x52000000), shadowLg = Color(0x75000000),
 )
 
-fun appColors(theme: String, systemDark: Boolean, accent: String): AppColors {
+fun appColors(theme: String, systemDark: Boolean, accent: String, bgActive: Boolean = false): AppColors {
     val base = when (theme) {
         "light" -> LightColors
         "dark" -> DarkColors
         "aurora" -> AuroraColors
         else -> if (systemDark) DarkColors else LightColors
     }
-    accentColorOrNull(accent)?.let { acc ->
-        val (p, soft) = accentColors(acc, base.dark)
-        return base.copy(primary = p, soft = soft)
-    }
-    return base
+    val acc = accentColorOrNull(accent)
+    val (p, soft) = if (acc != null) accentColors(acc, base.dark) else base.primary to base.soft
+    return base.copy(primary = p, soft = soft, bgActive = bgActive)
 }
 
 fun accentColorOrNull(hex: String): Color? = runCatching {
@@ -138,8 +138,8 @@ object AppTheme {
 }
 
 @Composable
-fun PomodoroTheme(theme: String, systemDark: Boolean, accent: String, content: @Composable () -> Unit) {
-    val colors = appColors(theme, systemDark, accent)
+fun PomodoroTheme(theme: String, systemDark: Boolean, accent: String, bgActive: Boolean = false, content: @Composable () -> Unit) {
+    val colors = appColors(theme, systemDark, accent, bgActive)
     CompositionLocalProvider(
         LocalAppColors provides colors,
         LocalAppType provides AppTypography(AppFonts.inter, AppFonts.symbols),

@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -121,6 +122,14 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
     var bgMode by mutableStateOf(storage.loadString("bgMode", "gradient"))
     /** 自定义背景图链接（对应网页 settings.bgUrl） */
     var bgUrl by mutableStateOf(storage.loadString("bgUrl", "")); private set
+    /** 已加载完成的背景图（对应网页 #bgImage 的 backgroundImage）；null = 无背景图 */
+    var bgImage by mutableStateOf<ImageBitmap?>(null); private set
+    /** 正在下载/解码背景图（设置页按钮显示「加载中」） */
+    var bgLoading by mutableStateOf(false); private set
+    /** 背景图是否生效 —— 卡片据此切换毛玻璃（对应网页 html[data-bg-active]） */
+    val bgActive: Boolean get() = bgMode != "gradient" && bgImage != null
+    /** 上次成功加载的 URL，避免刷新时重复下载 */
+    private var loadedBgUrl: String? = null
     var startTone by mutableStateOf(storage.loadString("startTone", "chime"))
     var endTone by mutableStateOf(storage.loadString("endTone", "chime"))
 
@@ -357,21 +366,65 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
         storage.saveString("taskName", s)
     }
 
-    /** 应用自定义背景图（图片下载/解码由平台层负责，见 Platform 的 loadImage…） */
-    fun applyBackgroundUrl(url: String) {
+    /**
+     * 加载当前设置对应的背景图（对应网页 applyBackground()）。
+     * 由界面在启动、以及 bgUrl/bgMode 变化时调用；失败会移除背景并提示。
+     */
+    suspend fun refreshBackgroundImage() {
+        val url = if (bgMode == "custom") bgUrl else ""
+        if (url.isEmpty()) {
+            bgImage = null
+            loadedBgUrl = null
+            bgLoading = false
+            return
+        }
+        if (url == loadedBgUrl && bgImage != null) return
+        bgLoading = true
+        val img = loadImageBitmap(url)
+        bgLoading = false
+        if (img != null) {
+            bgImage = img
+            loadedBgUrl = url
+        } else {
+            bgImage = null
+            loadedBgUrl = null
+            showToast("背景图片加载失败", "error")
+        }
+    }
+
+    /**
+     * 应用自定义背景图：先校验链接并确认真的能下载，成功才持久化
+     * （对应网页 bgApplyBtn：testImageUrl 通过后才 saveSettings）。
+     */
+    suspend fun applyBackgroundUrl(url: String) {
         val u = url.trim()
         if (u.isEmpty()) {
             showToast("请输入图片链接", "error")
             return
         }
+        if (!isSupportedImageUrl(u)) {
+            showToast("请输入以 http(s):// 开头的图片链接", "error")
+            return
+        }
+        bgLoading = true
+        val img = loadImageBitmap(u)
+        bgLoading = false
+        if (img == null) {
+            showToast("图片加载失败，请检查链接", "error")
+            return
+        }
         bgUrl = u
         bgMode = "custom"
+        bgImage = img
+        loadedBgUrl = u
         saveSettings()
-        showToast("已应用背景", "image")
+        showToast("背景已更新", "image")
     }
 
     fun clearBackground() {
         bgUrl = ""
+        bgImage = null
+        loadedBgUrl = null
         bgMode = "gradient"
         saveSettings()
         showToast("已恢复渐变背景", "palette")
@@ -402,6 +455,13 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
         storage.saveString("startTone", startTone)
         storage.saveString("endTone", endTone)
         storage.saveInt("cycle", completedSessions)
+    }
+
+    /** 立即把所有数据写入平台存储（安卓在 onPause/onStop 与计时完成时调用） */
+    fun autoSave() {
+        saveSettings()
+        saveDays()
+        saveTodos()
     }
 
     /** 跨天：把统计切到新的一天（对应网页 ensureToday） */

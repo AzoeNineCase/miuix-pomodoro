@@ -71,6 +71,10 @@ zip -r PomodoroTimer.ipa Payload
 - Windows / Linux 产物是 jpackage 的 app-image（自带运行时），解压即用；未做代码签名。
 - Android APK 为 debug 签名（预览用途）。
 - `org.gradle.java.home` 已移除：本机构建请保证 `JAVA_HOME` 指向 JDK 21。
+- 自定义背景图：支持 `https://` 图片链接与 `data:image/…;base64`（下载/解码为三端 `expect/actual`，
+  Android 已声明 `INTERNET` 权限）；背景图生效时卡片按网页 `[data-bg-active]` 的百分比切毛玻璃
+  （仍无 backdrop 模糊——Compose 无背层采样，与极光主题同款取舍）。本地选图与 API 换图暂未接入；
+  明文 `http://` 受系统 cleartext/ATS 限制，请用 `https://`。
 
 ## 与网页版的一致性验证（原生 UI 对齐）
 

@@ -7,10 +7,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import platform.AudioToolbox.AudioServicesPlaySystemSound
+import platform.Foundation.NSData
+import platform.Foundation.NSURL
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIApplication
+import platform.posix.memcpy
 
 /** iOS 设置存储：NSUserDefaults（对应 Android 的 SharedPreferences） */
 class IosSettingsStorage : SettingsStorage {
@@ -33,6 +42,32 @@ class IosSettingsStorage : SettingsStorage {
 actual fun platformPlaySound() {
     // 1104 = Tock：系统短提示音，跟随静音键
     AudioServicesPlaySystemSound(1104u)
+}
+
+actual suspend fun loadImageBitmap(url: String): ImageBitmap? = withContext(Dispatchers.Default) {
+    try {
+        val bytes = if (url.startsWith("data:", ignoreCase = true)) decodeDataUrlBytes(url) else fetchBytes(url)
+        bytes?.let { runCatching { org.jetbrains.skia.Image.makeFromEncoded(it) }.getOrNull()?.toComposeImageBitmap() }
+    } catch (_: Exception) {
+        null
+    }
+}
+
+/** 同步下载（在 Default 调度器里执行）；失败返回 null */
+private fun fetchBytes(url: String): ByteArray? {
+    val nsUrl = NSURL.URLWithString(url) ?: return null
+    return NSData.dataWithContentsOfURL(nsUrl)?.toByteArray()
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun NSData.toByteArray(): ByteArray {
+    val size = length.toInt()
+    if (size == 0) return ByteArray(0)
+    val out = ByteArray(size)
+    out.usePinned { pinned ->
+        memcpy(pinned.addressOf(0), bytes, length)
+    }
+    return out
 }
 
 actual fun startForegroundService(title: String, text: String) { /* iOS 无前台服务概念 */ }

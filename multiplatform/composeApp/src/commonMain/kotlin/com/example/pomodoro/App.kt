@@ -5,6 +5,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -36,10 +37,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,9 +66,12 @@ private val NavEase = CubicBezierEasing(0.4f, 1.2f, 0.95f, 0.97f)
 @Composable
 fun App(state: State, isDark: Boolean = isSystemInDarkTheme(), showSplash: Boolean = true) {
     val scope = rememberCoroutineScope()
-    PomodoroTheme(state.theme, isDark, state.accent) {
+    PomodoroTheme(state.theme, isDark, state.accent, bgActive = state.bgActive) {
         val c = AppTheme.colors
         KeepScreenOn(enabled = state.running)
+
+        // 背景图：启动与 bgUrl/bgMode 变化时（重新）加载（对应网页 applyBackground）
+        LaunchedEffect(state.bgMode, state.bgUrl) { state.refreshBackgroundImage() }
 
         LaunchedEffect(state.pendingAutoStart) { state.consumeAutoStart(scope) }
         LaunchedEffect(state.toast) {
@@ -90,6 +98,8 @@ fun App(state: State, isDark: Boolean = isSystemInDarkTheme(), showSplash: Boole
             val compact = maxWidth < 760.dp
 
             if (c.aurora) AuroraBackground()
+            // 自定义背景图（对应网页 #bgImage：盖在极光层之上、内容之下）
+            state.bgImage?.let { BackgroundImageLayer(it) }
 
             // ---- 关于页转场（500ms；底层左移 25% + 遮罩 0.5，与网页一致）----
             val nav = remember { Animatable(0f) }
@@ -174,6 +184,43 @@ private fun AuroraBackground() {
         glow(0.82f, 0.16f, w * 0.75f, Color(0x6B00BCD4))
         glow(0.72f, 0.82f, w * 0.85f, Color(0x803482FF))
         glow(0.26f, 0.84f, w * 0.72f, Color(0x5CEC4899))
+    }
+}
+
+/**
+ * 自定义背景图层（对应网页 .bg-image 与 ::after）：
+ * cover 铺满 + 0.6s 淡入 + 径向暗角叠加，保证前景文字对比度。
+ */
+@Composable
+private fun BackgroundImageLayer(image: ImageBitmap) {
+    val alpha = remember { Animatable(0f) }
+    LaunchedEffect(image) {
+        alpha.snapTo(0f)
+        alpha.animateTo(1f, tween(600, easing = NavEase))
+    }
+    Box(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer { this.alpha = alpha.value },
+    ) {
+        Image(
+            bitmap = image,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
+        // 径向暗角：radial-gradient(130% 130% at 50% 38%, rgba(8,10,24,.1), rgba(8,10,24,.32))
+        Box(
+            Modifier.fillMaxSize().drawWithCache {
+                val brush = Brush.radialGradient(
+                    0f to Color(0x1A080A18),
+                    1f to Color(0x52080A18),
+                    center = Offset(size.width * 0.5f, size.height * 0.38f),
+                    radius = size.height * 1.3f,
+                )
+                onDrawBehind { drawRect(brush) }
+            },
+        )
     }
 }
 

@@ -118,10 +118,10 @@ class MainActivity : ComponentActivity() {
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
-    private fun getCompletionText(mode: Mode): String = when (mode) {
-        Mode.Work -> "休息一下吧！🍅"
-        Mode.Short -> "短休息结束，继续加油！💪"
-        Mode.Long -> "长休息结束，准备下一轮！🚀"
+    private fun getCompletionText(mode: TimerMode): String = when (mode) {
+        TimerMode.Focus -> "休息一下吧！🍅"
+        TimerMode.Short -> "短休息结束，继续加油！💪"
+        TimerMode.Long -> "长休息结束，准备下一轮！🚀"
     }
 
     companion object {

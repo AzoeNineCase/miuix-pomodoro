@@ -52,6 +52,16 @@ import com.example.pomodoro.W
  * ============================================================ */
 
 /**
+ * 背景图激活时（对应网页 html[data-bg-active]）把底色按 color-mix 的百分比混透明：
+ * color-mix(in srgb, token N%, transparent) 等价于 alpha *= N%；未激活时原样返回。
+ */
+@Composable
+internal fun glassDim(color: Color, pct: Float): Color {
+    val c = AppTheme.colors
+    return if (c.bgActive) color.copy(alpha = color.alpha * pct) else color
+}
+
+/**
  * 毛玻璃底色：极光主题下网页用的是各自的白透明度值（而非统一的 surface-container）：
  *   .segment rgba(255,255,255,.08) / .stepper .08 / .tone-chip .08 / .btn-ghost .1 /
  *   .switch .14 / .segment button.active .16 / .ring-track .16 / .card .07
@@ -61,17 +71,29 @@ import com.example.pomodoro.W
 @Composable
 private fun glassSurface(level: Int): Color {
     val c = AppTheme.colors
-    if (!c.aurora) return when (level) {
-        2 -> c.surface            // .segment button.active
-        3 -> c.containerHighest   // .switch 轨道
-        else -> c.containerHigh   // .segment / .stepper / .tone-chip / .btn-ghost
+    val base = if (c.aurora) {
+        Color.White.copy(alpha = when (level) {
+            2 -> 0.16f  // .segment button.active（极光）
+            3 -> 0.14f  // .switch（极光）
+            1 -> 0.10f  // .btn-ghost（极光）
+            else -> 0.08f
+        })
+    } else {
+        when (level) {
+            2 -> c.surface            // .segment button.active
+            3 -> c.containerHighest   // .switch 轨道
+            else -> c.containerHigh   // .segment / .stepper / .tone-chip / .btn-ghost
+        }
     }
-    return Color.White.copy(alpha = when (level) {
-        2 -> 0.16f  // .segment button.active（极光）
-        3 -> 0.14f  // .switch（极光）
-        1 -> 0.10f  // .btn-ghost（极光）
-        else -> 0.08f
-    })
+    // [data-bg-active]：.segment/.stepper/.tone-chip 58%、.btn-ghost 52%、选中项 60%；
+    // .switch 网页未定义规则，保持不变
+    val pct = when (level) {
+        1 -> 0.52f
+        2 -> 0.60f
+        3 -> 1f
+        else -> 0.58f
+    }
+    return glassDim(base, pct)
 }
 
 /** 图标（Material Symbols Rounded 字形，与网页同字体同设置） */
@@ -102,8 +124,9 @@ fun CardBox(
         modifier
             .shadow(8.dp, RoundedCornerShape(radius), clip = false, ambientColor = c.shadow, spotColor = c.shadow)
             .clip(RoundedCornerShape(radius))
-            .background(c.container)
-            .border(1.dp, c.divider, RoundedCornerShape(radius))
+            // [data-bg-active]：卡片底色 52%、描边 70%（对应网页 .card）
+            .background(glassDim(c.container, 0.52f))
+            .border(1.dp, glassDim(c.divider, 0.70f), RoundedCornerShape(radius))
             .padding(padding),
         content = content,
     )
@@ -314,7 +337,8 @@ fun StatCell(value: String, label: String, modifier: Modifier = Modifier) {
     Column(
         modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(c.surface)
+            // [data-bg-active]：.stat-cell 底色 52%
+            .background(glassDim(c.surface, 0.52f))
             .border(1.dp, c.divider, RoundedCornerShape(16.dp))
             .padding(horizontal = 18.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),

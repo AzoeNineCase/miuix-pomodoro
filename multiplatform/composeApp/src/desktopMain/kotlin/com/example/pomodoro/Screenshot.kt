@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.runBlocking
 import org.jetbrains.skia.EncodedImageFormat
 import java.io.File
 
@@ -50,14 +51,39 @@ fun main(args: Array<String>) {
         renderToFile(File(outDir, "$name.png"), width, height, density) { App(state, theme != "light", showSplash = false) }
         println("saved $name.png")
     }
+
+    // 自定义背景图用例：用 data:image PNG（离线可复现）预载，验证「下载 → 解码 → 图层」全链路
+    runBlocking {
+        val state = State(NoOpStorage)
+        state.page = Page.Timer
+        state.theme = "light"
+        state.applyBackgroundUrl(dataUrlOfTestPng())
+        state.toast = null
+        renderToFile(File(outDir, "desktop-timer-light-bg.png"), width, height, density, frames = 48) {
+            App(state, false, showSplash = false)
+        }
+        println("saved desktop-timer-light-bg.png")
+    }
 }
 
-private fun renderToFile(file: File, width: Int, height: Int, density: Float, content: @androidx.compose.runtime.Composable () -> Unit) {
+/** 生成一张 96×96 渐变测试 PNG 并包成 data URL（不依赖网络） */
+private fun dataUrlOfTestPng(): String {
+    val img = java.awt.image.BufferedImage(96, 96, java.awt.image.BufferedImage.TYPE_INT_RGB)
+    val g = img.createGraphics()
+    g.paint = java.awt.GradientPaint(0f, 0f, java.awt.Color(0x2B, 0x5C, 0xC8), 96f, 96f, java.awt.Color(0x11, 0x14, 0x33))
+    g.fillRect(0, 0, 96, 96)
+    g.dispose()
+    val out = java.io.ByteArrayOutputStream()
+    javax.imageio.ImageIO.write(img, "png", out)
+    return "data:image/png;base64," + java.util.Base64.getEncoder().encodeToString(out.toByteArray())
+}
+
+private fun renderToFile(file: File, width: Int, height: Int, density: Float, frames: Int = 30, content: @androidx.compose.runtime.Composable () -> Unit) {
     val scene = ImageComposeScene(width, height, Density(density)) { content() }
     try {
         // 连续推进几帧，让入场动画（alpha/位移）落定后再导出
         var t = 0L
-        repeat(30) {
+        repeat(frames) {
             scene.render(t)
             t += 16_000_000L
         }

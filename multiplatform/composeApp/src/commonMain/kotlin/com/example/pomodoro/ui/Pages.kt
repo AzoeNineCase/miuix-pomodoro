@@ -55,6 +55,7 @@ import com.example.pomodoro.W
 import com.example.pomodoro.accentColorOrNull
 import kotlin.math.PI
 import kotlin.math.cos
+import kotlinx.coroutines.launch
 
 private val EaseInOut: Easing = Easing { f -> (1f - cos(f * PI).toFloat()) / 2f }
 
@@ -144,6 +145,8 @@ private fun TimerRing(state: State, size: Dp) {
                     ),
                 ),
         )
+        // [data-bg-active]：.ring-track 描边换成 outline 60%
+        val track = if (c.bgActive) glassDim(c.outline, 0.60f) else c.containerHighest
         Canvas(Modifier.fillMaxSize()) {
             val sw = stroke.toPx()
             val radius = 130f * (this.size.width / 300f)
@@ -151,7 +154,7 @@ private fun TimerRing(state: State, size: Dp) {
             val topLeft = Offset(center.x - radius, center.y - radius)
             val arcSize = Size(radius * 2, radius * 2)
 
-            drawArc(c.containerHighest, 0f, 360f, false, topLeft, arcSize, style = Stroke(sw))
+            drawArc(track, 0f, 360f, false, topLeft, arcSize, style = Stroke(sw))
 
             val p = state.progress.coerceIn(0f, 1f)
             if (p > 0f) {
@@ -257,7 +260,8 @@ private fun GhostLabel(icon: String, text: String, onClick: () -> Unit) {
     Row(
         Modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(c.containerHigh)
+            // [data-bg-active]：.btn-ghost 底色 52%
+            .background(glassDim(c.containerHigh, 0.52f))
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -358,7 +362,8 @@ private fun TodoRow(todo: TodoItem, onToggle: () -> Unit, onDelete: () -> Unit) 
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(c.surface)
+            // [data-bg-active]：.todo-item 底色 52%
+            .background(glassDim(c.surface, 0.52f))
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -463,6 +468,7 @@ fun SettingsPage(state: State) {
             Spacer(Modifier.height(16.dp))
             when (state.bgMode) {
                 "custom" -> {
+                    val scope = rememberCoroutineScope()
                     var url by remember { mutableStateOf(state.bgUrl) }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                         BasicTextField(
@@ -481,8 +487,14 @@ fun SettingsPage(state: State) {
                                 }
                             },
                         )
-                        PrimaryButton(text = "应用", icon = "check", height = 46.dp, fontSize = 14, paddingHorizontal = 18.dp) {
-                            state.applyBackgroundUrl(url)
+                        PrimaryButton(
+                            text = if (state.bgLoading) "加载中…" else "应用",
+                            icon = "check",
+                            height = 46.dp,
+                            fontSize = 14,
+                            paddingHorizontal = 18.dp,
+                        ) {
+                            if (!state.bgLoading) scope.launch { state.applyBackgroundUrl(url) }
                         }
                     }
                     Spacer(Modifier.height(10.dp))
@@ -523,6 +535,8 @@ private fun UploadBtn(onClick: () -> Unit) {
     Box(
         Modifier
             .clip(RoundedCornerShape(10.dp))
+            // [data-bg-active]：.upload-btn 底色 52%（默认透明）
+            .background(if (c.bgActive) glassDim(c.containerHigh, 0.52f) else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp),
     ) { Text("上传", color = c.primary, fontFamily = AppTheme.font, fontSize = 13.sp, fontWeight = W.bold) }
