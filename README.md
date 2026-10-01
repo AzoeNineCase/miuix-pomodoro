@@ -8,6 +8,7 @@
 
 - **网页版** —— 单个零依赖的 `index.html`，打开即用。
 - **安卓版** —— 用 WebView 原样运行同一份网页（像素级一致），并由原生前台服务兜底：息屏/锁屏也能准确计时、常驻通知栏倒计时、原生提示音（含自定义上传）等。
+- **多平台版** —— `multiplatform/` 里的 **Compose Multiplatform 原生实现**（同一套 Miuix UI），GitHub Actions 一键产出 **Android / Windows / Linux(x64+arm64) / macOS / iOS** 六个平台的预览包。
 
 |               计时 · 深色                |                统计                 |                    待办                     |
 | :--------------------------------------: | :---------------------------------: | :-----------------------------------------: |
@@ -54,6 +55,29 @@ cd android
 - 整个 App 就是网页跑在 WebView 里（`WebApp.kt`）。工程内还附带一套 100% 原生的 [Miuix](https://github.com/compose-miuix-ui/miuix) Compose 实现，改一个开关即可切换 —— 详见 [`android/README.md`](android/README.md)。
 - `android/tools/gen_tones.py` 用于重新生成内置提示音 WAV（纯标准库；改参数后重跑即可）。
 
+## Compose Multiplatform 版（全平台原生）
+
+`multiplatform/` 是用 **Compose Multiplatform + [Miuix](https://github.com/compose-miuix-ui/miuix)** 重写的同一款番茄钟（100% 原生组件，非 WebView）。云构建产物与 [miuix 官方预览包](https://github.com/compose-miuix-ui/miuix/releases) 对齐：
+
+| 平台                  | 产物                                        | 说明                           |
+| --------------------- | ------------------------------------------- | ------------------------------ |
+| Android               | `PomodoroTimer-android-universal-*.apk`     | debug 签名，可直接安装         |
+| Windows x64           | `PomodoroTimer-windows-x64-exe-*.zip`       | 解压即用（已含运行时）         |
+| Linux x64 / arm64     | `PomodoroTimer-linux-{x64,arm64}-bin-*.zip` | 解压后运行 `bin/PomodoroTimer` |
+| macOS (Apple Silicon) | `PomodoroTimer-darwin-arm64-dmg-*.dmg`      | 未签名，需右键打开             |
+| iOS                   | `PomodoroTimer-ios-arm64-unsigned-*.ipa`    | 未签名，需自签后安装           |
+
+👉 **下载地址**：[Releases](https://github.com/Simlalsy/miuix-pomodoro/releases)（打 `v*` 标签自动发布；也可在 [Actions](https://github.com/Simlalsy/miuix-pomodoro/actions) 里手动触发并下载 Artifacts）
+
+```bash
+cd multiplatform
+./gradlew :composeApp:assembleDebug                  # Android APK
+./gradlew :composeApp:createReleaseDistributable     # 当前平台的桌面版（app-image）
+./gradlew :composeApp:packageReleaseDmg              # macOS 上打包 DMG
+```
+
+iOS 需要 macOS：`cd iosApp && xcodegen generate`，然后用 Xcode 或 `xcodebuild` 构建（详见 [`multiplatform/README.md`](multiplatform/README.md)）。
+
 ## 实现要点
 
 - **单一数据源** —— Gradle 任务 `syncWebAssets` 在构建时把 `../index.html` 同步进 `app/src/main/assets/`，不存在需要手工维护的第二份副本。
@@ -73,6 +97,11 @@ android/                    安卓壳（Kotlin + WebView + 前台服务）
 │   ├── Tones.kt            SoundPool / MediaPlayer 提示音
 │   └── ui/                 可切换的原生 Miuix（Compose）实现
 └── tools/gen_tones.py      生成 res/raw/tone_*.wav
+multiplatform/              Compose Multiplatform 版（Android/Desktop/iOS）
+├── composeApp/src/commonMain/    共用 UI 与状态（Miuix）
+├── composeApp/src/iosMain/       iOS 平台实现
+└── iosApp/                        iOS 的 Xcode 壳（XcodeGen）
+.github/workflows/build-multiplatform.yml   六平台云构建
 ```
 
 ## 开源组件

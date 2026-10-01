@@ -8,6 +8,7 @@ A Pomodoro timer dressed in the MIUI / HyperOS (**Miuix**) design language — f
 
 - **Web** — a single, dependency-free `index.html`: open it and it just works.
 - **Android** — a WebView shell that runs the very same page pixel-for-pixel, plus a native foreground service so the timer keeps counting with the screen off, a persistent notification, native tones and more.
+- **Multiplatform** — a native **Compose Multiplatform** port in `multiplatform/` (same Miuix UI), with CI producing preview packages for **Android / Windows / Linux (x64 + arm64) / macOS / iOS**.
 
 |                Timer · Dark                |              Statistics              |                    To-dos                     |
 | :----------------------------------------: | :----------------------------------: | :-------------------------------------------: |
@@ -54,6 +55,29 @@ cd android
 - The whole app is the web page running inside a WebView (`WebApp.kt`). An alternative 100% native [Miuix](https://github.com/compose-miuix-ui/miuix) Compose implementation ships in the same project and is one switch away — see [`android/README.md`](android/README.md).
 - `android/tools/gen_tones.py` regenerates the built-in tone WAVs (pure stdlib; edit the parameters and re-run).
 
+## Compose Multiplatform edition (native, all platforms)
+
+`multiplatform/` is the same Pomodoro timer rewritten with **Compose Multiplatform + [Miuix](https://github.com/compose-miuix-ui/miuix)** — 100% native components, no WebView. CI produces the same set of preview packages as the [official Miuix previews](https://github.com/compose-miuix-ui/miuix/releases):
+
+| Platform              | Artifact                                    | Notes                               |
+| --------------------- | ------------------------------------------- | ----------------------------------- |
+| Android               | `PomodoroTimer-android-universal-*.apk`     | debug-signed, installable as-is     |
+| Windows x64           | `PomodoroTimer-windows-x64-exe-*.zip`       | portable, runtime bundled           |
+| Linux x64 / arm64     | `PomodoroTimer-linux-{x64,arm64}-bin-*.zip` | run `bin/PomodoroTimer` after unzip |
+| macOS (Apple Silicon) | `PomodoroTimer-darwin-arm64-dmg-*.dmg`      | unsigned, right-click to open       |
+| iOS                   | `PomodoroTimer-ios-arm64-unsigned-*.ipa`    | unsigned, re-sign to install        |
+
+👉 **Downloads**: [Releases](https://github.com/Simlalsy/miuix-pomodoro/releases) (published automatically on `v*` tags; or trigger a manual run under [Actions](https://github.com/Simlalsy/miuix-pomodoro/actions) and grab the artifacts).
+
+```bash
+cd multiplatform
+./gradlew :composeApp:assembleDebug                  # Android APK
+./gradlew :composeApp:createReleaseDistributable     # desktop app-image for the current OS
+./gradlew :composeApp:packageReleaseDmg              # DMG (on macOS)
+```
+
+iOS needs macOS: `cd iosApp && xcodegen generate`, then build with Xcode or `xcodebuild` (see [`multiplatform/README.md`](multiplatform/README.md)).
+
 ## How it works
 
 - **Single source of truth** — the Gradle task `syncWebAssets` copies `../index.html` into `app/src/main/assets/` at build time; there is no second copy to maintain.
@@ -73,6 +97,11 @@ android/                    Android shell (Kotlin + WebView + foreground service
 │   ├── Tones.kt            SoundPool / MediaPlayer tone playback
 │   └── ui/                 alternative native Miuix (Compose) implementation
 └── tools/gen_tones.py      generates res/raw/tone_*.wav
+multiplatform/              Compose Multiplatform edition (Android/Desktop/iOS)
+├── composeApp/src/commonMain/    shared UI & state (Miuix)
+├── composeApp/src/iosMain/       iOS platform bindings
+└── iosApp/                        SwiftUI shell for iOS (XcodeGen)
+.github/workflows/build-multiplatform.yml  6-platform cloud build
 ```
 
 ## Open source components
