@@ -1,0 +1,609 @@
+package com.example.pomodoro.ui
+
+import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.pomodoro.AppTheme
+import com.example.pomodoro.KEY_COLORS
+import com.example.pomodoro.State
+import com.example.pomodoro.TONES
+import com.example.pomodoro.TimerMode
+import com.example.pomodoro.TodoItem
+import com.example.pomodoro.W
+import com.example.pomodoro.accentColorOrNull
+import kotlin.math.PI
+import kotlin.math.cos
+
+private val EaseInOut: Easing = Easing { f -> (1f - cos(f * PI).toFloat()) / 2f }
+
+/* ============================================================
+ * 计时页：模式卡片 + 计时卡片
+ * ============================================================ */
+@Composable
+fun TimerPage(state: State, compact: Boolean = false) {
+    Column(Modifier.fillMaxWidth()) {
+        CardBox {
+            CardTitle("模式", " 选择")
+            Spacer(Modifier.height(20.dp))
+            Segment(listOf("专注", "短休息", "长休息"), state.mode.ordinal) { i ->
+                state.selectMode(TimerMode.entries[i])
+            }
+        }
+        Spacer(Modifier.height(32.dp))
+        TimerCard(state)
+    }
+}
+
+@Composable
+private fun TimerCard(state: State) {
+    val scope = rememberCoroutineScope()
+    CardBox(padding = 0.dp) {
+        Column(
+            Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 34.dp, bottom = 30.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            TimerRing(state, 300.dp)
+            Spacer(Modifier.height(32.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+                GhostButton("replay") { state.reset() }
+                PrimaryButton(
+                    text = if (state.running) "暂停" else "开始",
+                    icon = if (state.running) "pause" else "play_arrow",
+                    running = state.running,
+                    onClick = { if (state.running) state.pause() else state.start(scope) },
+                )
+                GhostButton("skip_next") { state.skip() }
+            }
+            Spacer(Modifier.height(32.dp))
+            SessionDots(state)
+        }
+    }
+}
+
+@Composable
+private fun TimerRing(state: State, size: Dp) {
+    val c = AppTheme.colors
+    val stroke = (12f * size.value / 300f).dp
+    val px = with(androidx.compose.ui.platform.LocalDensity.current) { size.toPx() }
+
+    val inf = rememberInfiniteTransition(label = "ring")
+    val ambient by inf.animateFloat(
+        0.5f, 0.85f,
+        infiniteRepeatable(tween(if (state.running) 2600 else 4000, easing = EaseInOut), RepeatMode.Reverse),
+        label = "ambient",
+    )
+    val ambientScale by inf.animateFloat(
+        0.92f, 1.06f,
+        infiniteRepeatable(tween(if (state.running) 2600 else 4000, easing = EaseInOut), RepeatMode.Reverse),
+        label = "ambientScale",
+    )
+    val dotPulse by inf.animateFloat(
+        0.6f, 1.3f,
+        infiniteRepeatable(tween(1600, easing = EaseInOut), RepeatMode.Reverse),
+        label = "dotPulse",
+    )
+
+    Box(Modifier.size(size), contentAlignment = Alignment.Center) {
+        // 环境光晕：对应 .ring-ambient（inset -14px / radial primary 26% → transparent 70% / opacity .55→.9）
+        Box(
+            Modifier
+                .fillMaxSize()
+                .scale(ambientScale)
+                .background(
+                    Brush.radialGradient(
+                        listOf(
+                            c.primary.copy(alpha = 0.145f * ambient),
+                            c.primary.copy(alpha = 0.085f * ambient),
+                            c.primary.copy(alpha = 0.03f * ambient),
+                            Color.Transparent,
+                        ),
+                        center = Offset(px / 2f, px / 2f),
+                        radius = px * 0.62f,
+                    ),
+                ),
+        )
+        Canvas(Modifier.fillMaxSize()) {
+            val sw = stroke.toPx()
+            val radius = 130f * (this.size.width / 300f)
+            val center = Offset(this.size.width / 2, this.size.height / 2)
+            val topLeft = Offset(center.x - radius, center.y - radius)
+            val arcSize = Size(radius * 2, radius * 2)
+
+            drawArc(c.containerHighest, 0f, 360f, false, topLeft, arcSize, style = Stroke(sw))
+
+            val p = state.progress.coerceIn(0f, 1f)
+            if (p > 0f) {
+                // 发光近似：CSS 里是 drop-shadow(0 0 10px primary@60%)
+                drawArc(c.primary.copy(alpha = 0.10f), -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw * 2f, cap = StrokeCap.Round))
+                drawArc(c.primary.copy(alpha = 0.18f), -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw * 1.35f, cap = StrokeCap.Round))
+                drawArc(c.primary, -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw, cap = StrokeCap.Round))
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Box(
+                Modifier
+                    .size(6.dp)
+                    .scale(if (state.running) dotPulse else 0.6f)
+                    .clip(CircleShape)
+                    .background(c.primary.copy(alpha = if (state.running) 1f else 0f)),
+            )
+            val timeSize = (size.value * 0.213f).coerceIn(44f, 64f)
+            Text(
+                state.timeText,
+                color = c.onSurface,
+                fontFamily = AppTheme.font,
+                fontSize = timeSize.sp,
+                fontWeight = W.extra,
+                letterSpacing = (-2).sp,
+                style = TextStyle(fontFeatureSettings = "tnum"),
+            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Symbol(state.mode.icon, 18.dp, c.variant)
+                Text(state.mode.label, color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp, fontWeight = W.semi)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SessionDots(state: State) {
+    val c = AppTheme.colors
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        repeat(state.sessionsBeforeLong) { i ->
+            val done = i < state.cycleDone
+            val isCurrent = i == state.cycleDone && state.running
+            Box(
+                Modifier
+                    .size(if (done) 18.dp else 10.dp)
+                    .clip(CircleShape)
+                    .background(if (done) c.soft else Color.Transparent),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(if (done) c.primary else c.containerHighest),
+                )
+            }
+        }
+    }
+}
+
+/* ============================================================
+ * 统计页
+ * ============================================================ */
+@Composable
+fun StatsPage(state: State) {
+    val c = AppTheme.colors
+    val today = state.today
+    Column(Modifier.fillMaxWidth()) {
+        CardBox {
+            CardTitle("今日", " 专注")
+            Spacer(Modifier.height(20.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                StatCell("${today.sessions}", "完成番茄", Modifier.weight(1f))
+                StatCell("${today.focusMin}", "专注分钟", Modifier.weight(1f))
+                StatCell("${today.best}", "最长连续", Modifier.weight(1f))
+            }
+        }
+        Spacer(Modifier.height(32.dp))
+        CardBox {
+            CardTitle("累计", " 专注")
+            Spacer(Modifier.height(20.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                StatCell("${state.totalSessions}", "累计番茄", Modifier.weight(1f))
+                StatCell("${state.totalHours}", "累计小时", Modifier.weight(1f))
+                StatCell("${state.activeDays}", "专注天数", Modifier.weight(1f))
+            }
+            Spacer(Modifier.height(18.dp))
+            GhostLabel("download", "导出数据") { state.showToast("数据已导出", "download") }
+        }
+        Spacer(Modifier.height(32.dp))
+        CardBox {
+            CardTitle("本周", " 分布")
+            Spacer(Modifier.height(20.dp))
+            WeekChart(state)
+        }
+    }
+}
+
+@Composable
+private fun GhostLabel(icon: String, text: String, onClick: () -> Unit) {
+    val c = AppTheme.colors
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(c.containerHigh)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Symbol(icon, 20.dp, c.onSurface)
+        Text(text, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 14.sp, fontWeight = W.bold)
+    }
+}
+
+@Composable
+private fun WeekChart(state: State) {
+    val c = AppTheme.colors
+    val week = state.weekStats
+    val maxSessions = (week.maxOfOrNull { it.second.sessions } ?: 0).coerceAtLeast(1)
+    Row(
+        Modifier.fillMaxWidth().height(120.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        week.forEach { (key, stat) ->
+            val fraction = stat.sessions.toFloat() / maxSessions
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
+                if (stat.sessions > 0) {
+                    Text("${stat.sessions}", color = c.variant, fontFamily = AppTheme.font, fontSize = 11.sp, fontWeight = W.semi)
+                    Spacer(Modifier.height(4.dp))
+                }
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height((92 * fraction.coerceAtLeast(0.06f)).dp)
+                        .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
+                        .background(if (stat.sessions > 0) c.primary.copy(alpha = 0.85f) else c.containerHigh),
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(key.substringAfterLast('-'), color = c.variant, fontFamily = AppTheme.font, fontSize = 11.sp, fontWeight = W.semi)
+            }
+        }
+    }
+}
+
+/* ============================================================
+ * 待办页
+ * ============================================================ */
+@Composable
+fun TodosPage(state: State) {
+    val c = AppTheme.colors
+    var input by remember { mutableStateOf("") }
+    CardBox {
+        CardTitle("待办", " 清单")
+        Spacer(Modifier.height(16.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            BasicTextField(
+                value = input,
+                onValueChange = { input = it },
+                singleLine = true,
+                textStyle = TextStyle(color = c.onSurface, fontSize = 14.sp, fontFamily = AppTheme.font),
+                modifier = Modifier.weight(1f),
+                decorationBox = { inner ->
+                    Box(
+                        Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(14.dp)).background(c.containerHigh).padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        if (input.isEmpty()) Text("添加一个待办，回车确认…", color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp)
+                        inner()
+                    }
+                },
+            )
+            PrimaryButton(text = "添加", icon = "add", height = 46.dp, fontSize = 14, paddingHorizontal = 18.dp) {
+                state.addTodo(input)
+                input = ""
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        val doneCount = state.todos.count { it.done }
+        Row(Modifier.padding(start = 2.dp, bottom = 6.dp)) {
+            Text("共 ${state.todos.size} 项", color = c.onSurface, fontFamily = AppTheme.font, fontSize = 13.sp, fontWeight = W.semi)
+            Text(" · 已完成 $doneCount", color = c.variant, fontFamily = AppTheme.font, fontSize = 13.sp, fontWeight = W.semi)
+        }
+        if (state.todos.isEmpty()) {
+            Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
+                Text("还没有待办，先加一条吧", color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp)
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                state.todos.forEachIndexed { index, todo ->
+                    TodoRow(todo, onToggle = { state.toggleTodo(index) }, onDelete = { state.removeTodo(index) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TodoRow(todo: TodoItem, onToggle: () -> Unit, onDelete: () -> Unit) {
+    val c = AppTheme.colors
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(c.surface)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(if (todo.done) c.primary else c.containerHigh)
+                .clickable(onClick = onToggle),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (todo.done) Symbol("check", 16.dp, c.onPrimary)
+        }
+        Text(
+            todo.text,
+            Modifier.weight(1f),
+            color = if (todo.done) c.variant else c.onSurface,
+            fontFamily = AppTheme.font,
+            fontSize = 15.sp,
+            fontWeight = W.semi,
+        )
+        Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onDelete), contentAlignment = Alignment.Center) {
+            Symbol("delete", 20.dp, c.variant)
+        }
+    }
+}
+
+/* ============================================================
+ * 设置页
+ * ============================================================ */
+@Composable
+fun SettingsPage(state: State) {
+    val c = AppTheme.colors
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(32.dp)) {
+
+        // 时长设置
+        CardBox {
+            CardTitle("时长", " 设置")
+            Spacer(Modifier.height(12.dp))
+            SettingRow("psychology", "专注时长", "每次深度工作") { Stepper(state.focusMinutes) { state.levelUp("focusMinutes", it) } }
+            SettingRow("coffee", "短休息", "小憩一下") { Stepper(state.shortMinutes) { state.levelUp("shortMinutes", it) } }
+            SettingRow("self_improvement", "长休息", "深度恢复") { Stepper(state.longMinutes) { state.levelUp("longMinutes", it) } }
+            SettingRow("repeat", "长休息间隔", "每几轮进入长休息", showDivider = false) { Stepper(state.sessionsBeforeLong) { state.levelUp("sessionsBeforeLong", it) } }
+        }
+
+        // 行为设置
+        CardBox {
+            CardTitle("行为", " 设置")
+            Spacer(Modifier.height(12.dp))
+            SettingRow("play_circle", "自动开始下一轮", "结束后自动继续") { AppSwitch(state.autoStart) { state.autoStart = it; state.saveSettings() } }
+            SettingRow("notifications", "提示音", "结束时播放提醒") { AppSwitch(state.sound) { state.sound = it; state.saveSettings() } }
+            SettingRow("notification_add", "桌面通知", "结束时系统提醒") { AppSwitch(state.notify) { state.notify = it; state.saveSettings() } }
+            SettingRow("picture_in_picture", "悬浮迷你计时器", "可拖动的迷你圆环") { AppSwitch(state.miniTimer) { state.miniTimer = it; state.saveSettings() } }
+            SettingRow("swipe_vertical", "超出回弹", "拖到顶部/底部时的拉伸动画", showDivider = false) { AppSwitch(state.overscroll) { state.overscroll = it; state.saveSettings() } }
+        }
+
+        // 主题风格
+        CardBox {
+            CardTitle("主题", " 风格")
+            Spacer(Modifier.height(18.dp))
+            SettingRow("palette", "强调色", "选择你的主色调", showDivider = false) {}
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                KEY_COLORS.forEach { (name, hex) ->
+                    val active = state.accent.equals(hex, ignoreCase = true)
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(accentColorOrNull(hex) ?: c.primary)
+                            .clickable { state.accent = hex; state.saveSettings(); state.showToast("已切换到「$name」", "palette") },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (active) Text("✓", color = Color.White, fontFamily = AppTheme.font, fontSize = 18.sp, fontWeight = W.extra)
+                    }
+                }
+            }
+        }
+
+        // 提醒音
+        CardBox {
+            CardTitle("提醒音", " 声音")
+            Spacer(Modifier.height(18.dp))
+            SettingRow("play_circle", "开始提醒音", "点击试听，或上传自定义") { UploadBtn { state.showToast("暂不支持上传", "error") } }
+            Spacer(Modifier.height(10.dp))
+            ToneChips(state.startTone) { state.startTone = it; state.saveSettings(); state.playTone() }
+            Spacer(Modifier.height(20.dp))
+            SettingRow("notifications_active", "结束提醒音", "点击试听，或上传自定义") { UploadBtn { state.showToast("暂不支持上传", "error") } }
+            Spacer(Modifier.height(10.dp))
+            ToneChips(state.endTone) { state.endTone = it; state.saveSettings(); state.playTone() }
+        }
+
+        // 背景
+        CardBox {
+            CardTitle("背景", " 图片")
+            Spacer(Modifier.height(16.dp))
+            Segment(listOf("渐变", "自定义", "API"), when (state.bgMode) { "custom" -> 1; "api" -> 2; else -> 0 }) { i ->
+                state.bgMode = listOf("gradient", "custom", "api")[i]
+                state.saveSettings()
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                when (state.bgMode) {
+                    "custom" -> "可粘贴图片链接，或从本地选择图片作为背景。"
+                    "api" -> "可选择 API 来源；开启后每隔 5 分钟自动换图。"
+                    else -> "使用主题自带的渐变背景（浅色 / 深色 / 极光）。"
+                },
+                color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp,
+            )
+        }
+
+        // 关于入口
+        CardBox {
+            SettingRow("info", "关于", "版本 v1.0.0", showDivider = false) {
+                Box(Modifier.size(28.dp).clickable { state.showAbout = true }, contentAlignment = Alignment.Center) {
+                    Symbol("chevron_right", 22.dp, c.variant.copy(alpha = 0.6f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UploadBtn(onClick: () -> Unit) {
+    val c = AppTheme.colors
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+    ) { Text("上传", color = c.primary, fontFamily = AppTheme.font, fontSize = 13.sp, fontWeight = W.bold) }
+}
+
+@Composable
+private fun ToneChips(selected: String, onSelect: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        TONES.chunked(4).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { (id, label) -> Chip(label, active = id == selected) { onSelect(id) } }
+            }
+        }
+    }
+}
+
+/* ============================================================
+ * 关于页（全屏浮层）
+ * ============================================================ */
+@Composable
+fun AboutPage(state: State, onClose: () -> Unit) {
+    val c = AppTheme.colors
+    val dark = c.dark
+    val bg = if (dark) {
+        Brush.linearGradient(listOf(Color(0xFF2D1F3D), Color(0xFF241F3E), Color(0xFF181533)))
+    } else {
+        Brush.linearGradient(listOf(Color(0xFFFFE3F1), Color(0xFFF0E7FD), Color(0xFFDCD7FA)))
+    }
+    val fg = if (dark) Color(0xFFECE9FF) else Color(0xFF1B1633)
+    Column(Modifier.fillMaxSize().background(bg)) {
+        Row(Modifier.fillMaxWidth().padding(start = 10.dp, top = 10.dp)) {
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
+                Symbol("arrow_back", 24.dp, fg)
+            }
+        }
+        Column(
+            Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Box(
+                Modifier.size(96.dp).clip(RoundedCornerShape(28.dp)).background(Color(0xFF3482FF)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Canvas(Modifier.size(58.dp)) {
+                    val sw = 4.dp.toPx()
+                    drawCircle(Color.White, radius = size.minDimension / 2 - sw / 2, style = Stroke(sw))
+                    val c0 = Offset(size.width / 2, size.height / 2)
+                    drawLine(Color.White, c0, Offset(c0.x, c0.y - size.height * 0.28f), strokeWidth = sw, cap = StrokeCap.Round)
+                    drawLine(Color.White, c0, Offset(c0.x + size.width * 0.2f, c0.y + size.height * 0.12f), strokeWidth = sw, cap = StrokeCap.Round)
+                }
+            }
+            Spacer(Modifier.height(22.dp))
+            Text(
+                "番茄钟",
+                fontFamily = AppTheme.font,
+                fontSize = 32.sp,
+                fontWeight = W.extra,
+                letterSpacing = (-0.5).sp,
+                style = TextStyle(
+                    brush = Brush.linearGradient(
+                        if (dark) listOf(Color(0xFFB9A6FF), Color(0xFFE0A6FF), Color(0xFFFF9ECB))
+                        else listOf(Color(0xFF4A2FB8), Color(0xFFA24BD0), Color(0xFFE0559A)),
+                    ),
+                ),
+            )
+            Spacer(Modifier.height(8.dp))
+            Text("v1.0.0", color = fg.copy(alpha = 0.5f), fontFamily = AppTheme.font, fontSize = 14.sp, fontWeight = W.semi)
+        }
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
+            AboutCard(
+                dark,
+                listOf(
+                    "应用版本" to "v1.0.0",
+                    "设计参考" to "MiuiX",
+                    "我的 GitHub" to "@Simlalsy",
+                ),
+            )
+            Spacer(Modifier.height(16.dp))
+            AboutCard(
+                dark,
+                listOf(
+                    "MiuiX for Compose" to "compose-miuix-ui/miuix",
+                    "Material Symbols" to "google/material-design-icons",
+                    "Inter" to "rsms/inter",
+                    "Jetpack Compose" to "androidx/androidx",
+                ),
+            )
+            Spacer(Modifier.height(16.dp))
+            AboutCard(
+                dark,
+                listOf(
+                    "开源许可" to "Apache-2.0",
+                    "第三方许可" to "",
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutCard(dark: Boolean, rows: List<Pair<String, String>>) {
+    val bg = if (dark) Color(0x17FFFFFF) else Color(0xB8FFFFFF)
+    val fg = if (dark) Color(0xFFECE9FF) else Color(0xFF1B1633)
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(bg)) {
+        rows.forEach { (label, value) ->
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(label, color = fg, fontFamily = AppTheme.font, fontSize = 16.sp, fontWeight = W.bold, modifier = Modifier.weight(1f))
+                if (value.isNotEmpty()) {
+                    Text(value, color = fg.copy(alpha = 0.55f), fontFamily = AppTheme.font, fontSize = 14.sp, fontWeight = W.semi)
+                }
+                Spacer(Modifier.width(8.dp))
+                Symbol("chevron_right", 22.dp, fg.copy(alpha = 0.42f))
+            }
+        }
+    }
+}

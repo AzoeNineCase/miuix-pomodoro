@@ -26,6 +26,7 @@ kotlin {
                 implementation(compose.foundation)
                 implementation(compose.material3)
                 implementation(compose.materialIconsExtended)
+                implementation(compose.components.resources)
                 implementation(compose.ui)
                 implementation(libs.miuix.ui)
                 implementation(libs.miuix.icons)
@@ -91,4 +92,21 @@ compose.desktop {
             }
         }
     }
+}
+
+// 离屏渲染各页面截图（用于与网页版逐像素比对，不产出窗口）
+tasks.register<JavaExec>("screenshots") {
+    group = "verification"
+    description = "Render Compose screens offscreen to PNG for pixel comparison"
+    dependsOn("desktopMainClasses")
+    val desktopMain = kotlin.targets.getByName("desktop").compilations.getByName("main")
+    classpath = (desktopMain.runtimeDependencyFiles ?: files()) + desktopMain.output.allOutputs
+    mainClass.set("com.example.pomodoro.ScreenshotKt")
+    workingDir = projectDir
+    args = listOf(
+        layout.buildDirectory.dir("screenshots").get().asFile.absolutePath,
+        (findProperty("shotW") as String? ?: "2560"),
+        (findProperty("shotH") as String? ?: "1600"),
+        (findProperty("shotDensity") as String? ?: "2"),
+    )
 }

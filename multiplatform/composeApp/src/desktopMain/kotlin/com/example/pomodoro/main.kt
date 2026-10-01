@@ -14,9 +14,18 @@ import androidx.compose.ui.window.rememberWindowState
 fun main() = application {
     val state = remember { State() }
     val isDark = isSystemInDarkTheme()
+    // 截图/调试用：POMODORO_PAGE=timer|stats|todos|settings，POMODORO_THEME=light|dark|aurora|system，POMODORO_ABOUT=1
+    remember {
+        System.getenv("POMODORO_PAGE")?.let { id ->
+            Page.entries.firstOrNull { it.id == id }?.let { state.page = it }
+        }
+        System.getenv("POMODORO_THEME")?.let { state.theme = it }
+        if (System.getenv("POMODORO_ABOUT") == "1") state.showAbout = true
+        true
+    }
     Window(
         onCloseRequest = ::exitApplication,
-        title = if (state.running || state.remain < state.total) state.displayTitle else "番茄钟",
-        state = rememberWindowState(position = WindowPosition(Alignment.Center), size = DpSize(420.dp, 720.dp)),
+        title = if (state.running || state.secondsLeft < state.totalSeconds) "${state.timeText} — 番茄钟" else "番茄钟",
+        state = rememberWindowState(position = WindowPosition(Alignment.Center), size = DpSize(1100.dp, 780.dp)),
     ) { App(state, isDark) }
 }

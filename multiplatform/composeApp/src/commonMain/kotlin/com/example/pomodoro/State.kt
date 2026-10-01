@@ -1,14 +1,25 @@
 package com.example.pomodoro
 
-import androidx.compose.runtime.*
-import kotlinx.coroutines.*
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Instant
 
-/* ---------- 跨平台时间工具（kotlinx-datetime，替代 JVM 专属的 SimpleDateFormat/Calendar） ---------- */
+/* ---------- 跨平台时间工具（kotlinx-datetime） ---------- */
 
 internal fun pad2(n: Int): String = if (n < 10) "0$n" else "$n"
 
@@ -19,8 +30,21 @@ internal fun formatHm(ts: Long): String {
     return "${pad2(dt.hour)}:${pad2(dt.minute)}"
 }
 
-internal fun todayIsoDate(): String =
-    Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date.toString()
+/** 与网页 todayKey() 完全一致：`Y-M-D`（月份/日期不补零） */
+internal fun todayKey(): String {
+    val d = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()).date
+    return "${d.year}-${d.monthNumber}-${d.dayOfMonth}"
+}
+
+/** 最近 n 天的 key（含今天，最早的在前），用于「本周分布」 */
+internal fun recentDayKeys(n: Int = 7): List<String> {
+    val tz = TimeZone.currentSystemDefault()
+    val today = Clock.System.now().toLocalDateTime(tz).date
+    return (n - 1 downTo 0).map { back ->
+        val day = today.minus(kotlinx.datetime.DatePeriod(days = back))
+        "${day.year}-${day.monthNumber}-${day.dayOfMonth}"
+    }
+}
 
 internal fun todayStartMillis(): Long {
     val tz = TimeZone.currentSystemDefault()
@@ -28,12 +52,8 @@ internal fun todayStartMillis(): Long {
     return date.atStartOfDayIn(tz).toEpochMilliseconds()
 }
 
-@Immutable
-data class HistoryEntry(val mode: Mode, val minutes: Int, val ts: Long = nowMillis()) {
-    val timeStr: String get() = formatHm(ts)
-}
+/* ---------- 持久化接口（平台层实现） ---------- */
 
-/**持久化接口，平台层实现具体存储 */
 interface SettingsStorage {
     fun saveInt(key: String, value: Int)
     fun loadInt(key: String, default: Int): Int
@@ -43,7 +63,6 @@ interface SettingsStorage {
     fun loadString(key: String, default: String): String
 }
 
-/**空实现，用于桌面端 */
 object NoOpStorage : SettingsStorage {
     override fun saveInt(key: String, value: Int) {}
     override fun loadInt(key: String, default: Int): Int = default
@@ -53,132 +72,353 @@ object NoOpStorage : SettingsStorage {
     override fun loadString(key: String, default: String): String = default
 }
 
+/* ---------- 数据模型（对应网页 MODES / dayStats / todos） ---------- */
+
+enum class TimerMode(val id: String, val label: String, val icon: String) {
+    Focus("focus", "专注", "psychology"),
+    Short("short", "短休息", "coffee"),
+    Long("long", "长休息", "self_improvement");
+
+    companion object {
+        fun byId(id: String?) = entries.firstOrNull { it.id == id } ?: Focus
+    }
+}
+
+@Immutable
+data class DayStat(val sessions: Int = 0, val focusMin: Int = 0, val best: Int = 0)
+
+@Immutable
+data class TodoItem(val text: String, val done: Boolean = false)
+
+@Immutable
+data class ToastMsg(val text: String, val icon: String = "check")
+
+/** 导航项（对应 .rail-item，顺序与网页一致） */
+enum class Page(val id: String, val label: String, val icon: String, val title: String, val subtitle: String) {
+    Timer("timer", "计时", "timer", "番茄钟", "专注每一刻"),
+    Stats("stats", "统计", "monitoring", "统计", "你的专注足迹"),
+    Todos("todos", "待办", "checklist", "待办", "今天要做的事"),
+    Settings("settings", "设置", "settings", "设置", "偏好与外观"),
+}
+
+const val TONE_CUSTOM = "custom"
+
 @Stable
 class State(private val storage: SettingsStorage = NoOpStorage) {
-    var mode by mutableStateOf(Mode.Work); private set
-    var remain by mutableIntStateOf(25 * 60); private set
-    var total by mutableIntStateOf(25 * 60); private set
+
+    /* ================= 设置（对应网页 DEFAULTS） ================= */
+    var focusMinutes by mutableIntStateOf(storage.loadInt("focusMinutes", 25))
+    var shortMinutes by mutableIntStateOf(storage.loadInt("shortMinutes", 5))
+    var longMinutes by mutableIntStateOf(storage.loadInt("longMinutes", 15))
+    var sessionsBeforeLong by mutableIntStateOf(storage.loadInt("sessionsBeforeLong", 4))
+    var autoStart by mutableStateOf(storage.loadBoolean("autoStart", false))
+    var sound by mutableStateOf(storage.loadBoolean("sound", true))
+    var notify by mutableStateOf(storage.loadBoolean("notify", false))
+    var miniTimer by mutableStateOf(storage.loadBoolean("miniTimer", false))
+    var overscroll by mutableStateOf(storage.loadBoolean("overscroll", true))
+    var theme by mutableStateOf(storage.loadString("theme", "system"))
+    var accent by mutableStateOf(storage.loadString("accent", "#3482FF"))
+    var bgMode by mutableStateOf(storage.loadString("bgMode", "gradient"))
+    var startTone by mutableStateOf(storage.loadString("startTone", "chime"))
+    var endTone by mutableStateOf(storage.loadString("endTone", "chime"))
+
+    /* ================= 计时（对应网页 mode/remaining/total/running/endAt） ================= */
+    var mode by mutableStateOf(TimerMode.Focus); private set
     var running by mutableStateOf(false); private set
+    var secondsLeft by mutableIntStateOf(focusMinutes * 60); private set
+    var totalSeconds by mutableIntStateOf(focusMinutes * 60); private set
     var finished by mutableStateOf(false); private set
-
-    var cfgWork by mutableIntStateOf(storage.loadInt("cfgWork", 25))
-    var cfgShort by mutableIntStateOf(storage.loadInt("cfgShort", 5))
-    var cfgLong by mutableIntStateOf(storage.loadInt("cfgLong", 15))
-    var autoStart by mutableStateOf(storage.loadBoolean("autoStart", true))
-    var soundOn by mutableStateOf(storage.loadBoolean("soundOn", true))
-    var dailyGoal by mutableIntStateOf(storage.loadInt("dailyGoal", 8))
-    var focusMode by mutableStateOf(false)
-
-    var sessions by mutableIntStateOf(storage.loadInt("sessions", 0))
-    var sessionN by mutableIntStateOf((storage.loadInt("sessions", 0) % 4) + 1)
-    var taskName by mutableStateOf(storage.loadString("taskName", ""))
-    val lastResetDate = mutableStateOf(storage.loadString("lastResetDate", ""))
-    val history = mutableStateListOf<HistoryEntry>().apply {
-        addAll(
-            storage.loadString("history", "").split("|").filter { it.isNotBlank() }.mapNotNull { entry ->
-                try {
-                    val parts = entry.split(",")
-                    if (parts.size == 3) {
-                        val modeOrdinal = parts[0].toIntOrNull() ?: return@mapNotNull null
-                        val minutes = parts[1].toIntOrNull() ?: return@mapNotNull null
-                        val ts = parts[2].toLongOrNull() ?: return@mapNotNull null
-                        val mode = Mode.entries.getOrElse(modeOrdinal) { Mode.Work }
-                        HistoryEntry(mode, minutes, ts)
-                    } else null
-                } catch (_: Exception) { null }
-            }
-        )
-    }
-
-    var showCfg by mutableStateOf(false)
-    var showStats by mutableStateOf(false)
-
-    var completionPulse by mutableFloatStateOf(0f); private set
-    var quote by mutableStateOf(Quotes.random())
-    var breakTip by mutableStateOf(BreakTips.random())
-
-    var sliderWork by mutableFloatStateOf(25f)
-    var sliderShort by mutableFloatStateOf(5f)
-    var sliderLong by mutableFloatStateOf(15f)
-    var sliderGoal by mutableFloatStateOf(8f)
-
-    var onTimerFinished: (() -> Unit)? = null
-
+    private var endAt = 0L
     private var timerJob: Job? = null
 
-    val progress by derivedStateOf { if (total > 0) (total - remain).toFloat() / total else 0f }
-    val mins by derivedStateOf { remain / 60 }
-    val secs by derivedStateOf { remain % 60 }
-    val elapsed by derivedStateOf { total - remain }
-    val eMins by derivedStateOf { elapsed / 60 }
-    val eSecs by derivedStateOf { elapsed % 60 }
-    val color by derivedStateOf { mode.color }
-    val sessionLabel by derivedStateOf { "第 $sessionN / 4 个番茄" }
-    val untilLong by derivedStateOf { 4 - (sessions % 4) }
-    val displayTitle by derivedStateOf { "${pad2(mins)}:${pad2(secs)} — 番茄钟" }
+    /** 平台钩子：完成一轮时调用（安卓版用来同步前台服务/通知） */
+    var onTimerFinished: (() -> Unit)? = null
 
-    private fun secsOf(m: Mode) = when (m) { Mode.Work -> cfgWork; Mode.Short -> cfgShort; Mode.Long -> cfgLong } * 60
+    /* ================= 周期与统计 ================= */
+    var completedSessions by mutableIntStateOf(storage.loadInt("cycle", 0)); private set
+    private val days = mutableStateMapOf<String, DayStat>()
+    val today: DayStat get() = days[todayKey()] ?: DayStat()
 
-    fun saveSettings() {
-        storage.saveInt("cfgWork", cfgWork)
-        storage.saveInt("cfgShort", cfgShort)
-        storage.saveInt("cfgLong", cfgLong)
-        storage.saveInt("dailyGoal", dailyGoal)
-        storage.saveBoolean("autoStart", autoStart)
-        storage.saveBoolean("soundOn", soundOn)
-        storage.saveInt("sessions", sessions)
-        storage.saveString("lastResetDate", lastResetDate.value)
-        storage.saveString("taskName", taskName)
-        storage.saveString("history", history.takeLast(200).joinToString("|") { "${it.mode.ordinal},${it.minutes},${it.ts}" })
+    /* ================= 待办 ================= */
+    val todos = mutableStateListOf<TodoItem>()
+
+    /* ================= 界面状态 ================= */
+    var page by mutableStateOf(Page.Timer)
+    var showAbout by mutableStateOf(false)
+    var aboutModal by mutableStateOf<Pair<String, String>?>(null)
+    var toast by mutableStateOf<ToastMsg?>(null)
+    var taskName by mutableStateOf(storage.loadString("taskName", ""))
+
+    init {
+        loadDays()
+        loadTodos()
     }
 
-    fun startJob(scope: CoroutineScope) { timerJob?.cancel(); timerJob = scope.launch { timerLoop() } }
+    /* ================= 派生值 ================= */
+    val progress: Float
+        get() = if (totalSeconds > 0) (totalSeconds - secondsLeft).toFloat() / totalSeconds else 0f
 
-    private suspend fun timerLoop() {
-        running = true; finished = false; var lastMs = nowMillis()
-        while (running && remain > 0) {
-            delay(50); if (!running) break; val now = nowMillis(); val dt = now - lastMs
-            if (dt >= 1000) {
-                val ticks = (dt / 1000).toInt(); lastMs += ticks * 1000L; remain = (remain - ticks).coerceAtLeast(0); if (!running) break
-                if (mode == Mode.Work && remain > 0 && remain % 180 == 0) quote = Quotes.random()
-                if (mode != Mode.Work && remain > 0 && remain % 120 == 0) breakTip = BreakTips.random()
-                if (remain <= 0) {
-                    running = false; finished = true; completionPulse = 1f
-                    if (soundOn) platformPlaySound(); onComplete()
-                }
+    val timeText: String get() = "${pad2(secondsLeft / 60)}:${pad2(secondsLeft % 60)}"
+
+    val modeMinutes: Int
+        get() = when (mode) {
+            TimerMode.Focus -> focusMinutes
+            TimerMode.Short -> shortMinutes
+            TimerMode.Long -> longMinutes
+        }
+
+    /** 当前长休息周期内已完成的专注轮数（圆点用） */
+    val cycleDone: Int get() = completedSessions % sessionsBeforeLong
+
+    val untilLong: Int get() = sessionsBeforeLong - cycleDone
+
+    val weekStats: List<Pair<String, DayStat>>
+        get() = recentDayKeys(7).map { it to (days[it] ?: DayStat()) }
+
+    val totalSessions: Int get() = days.values.sumOf { it.sessions }
+    val totalFocusMin: Int get() = days.values.sumOf { it.focusMin }
+    val totalHours: Int get() = totalFocusMin / 60
+    val activeDays: Int get() = days.count { it.value.sessions > 0 }
+
+    /* ================= 计时行为 ================= */
+    private fun secondsOf(m: TimerMode) = when (m) {
+        TimerMode.Focus -> focusMinutes
+        TimerMode.Short -> shortMinutes
+        TimerMode.Long -> longMinutes
+    } * 60
+
+    fun start(scope: CoroutineScope) {
+        if (running) return
+        running = true
+        finished = false
+        endAt = nowMillis() + secondsLeft * 1000L
+        if (startTone.isNotEmpty()) playTone()
+        timerJob?.cancel()
+        timerJob = scope.launch { tickLoop() }
+    }
+
+    private suspend fun tickLoop() {
+        while (running) {
+            delay(100)
+            val left = ((endAt - nowMillis()) / 1000.0)
+            val s = if (left <= 0) 0 else kotlin.math.ceil(left).toInt()
+            if (s != secondsLeft) secondsLeft = s
+            if (s <= 0) {
+                running = false
+                complete()
+                return
             }
         }
     }
 
-    fun pause() { running = false; timerJob?.cancel(); timerJob = null }
-    fun reset() { running = false; remain = secsOf(mode); total = remain; finished = false; completionPulse = 0f }
-    fun skip() { running = false; completionPulse = 1f; if (soundOn) platformPlaySound(); onComplete() }
-    fun switchMode(m: Mode) { running = false; mode = m; remain = secsOf(m); total = remain; finished = false; completionPulse = 0f; quote = Quotes.random(); breakTip = BreakTips.random() }
-    fun setTask(s: String) { taskName = s }
-    fun dismissCompletionPulse() { completionPulse = 0f }
-    fun autoSave() { saveSettings() }
+    fun pause() {
+        running = false
+        timerJob?.cancel(); timerJob = null
+    }
 
+    fun reset() {
+        pause()
+        finished = false
+        totalSeconds = secondsOf(mode)
+        secondsLeft = totalSeconds
+    }
+
+    fun skip() {
+        pause()
+        complete(skipped = true)
+    }
+
+    fun selectMode(m: TimerMode) {
+        pause()
+        mode = m
+        finished = false
+        totalSeconds = secondsOf(m)
+        secondsLeft = totalSeconds
+        page = Page.Timer
+    }
+
+    /** 一轮结束（或跳过）后的流转：与网页 handleComplete 一致 */
+    private fun complete(skipped: Boolean = false) {
+        finished = true
+        if (endTone.isNotEmpty()) playTone()
+        val todayK = todayKey()
+        if (mode == TimerMode.Focus) {
+            completedSessions += 1
+            val stat = days[todayK] ?: DayStat()
+            val sessions = stat.sessions + 1
+            days[todayK] = stat.copy(
+                sessions = sessions,
+                focusMin = stat.focusMin + focusMinutes,
+                best = maxOf(stat.best, completedSessions.coerceAtMost(sessionsBeforeLong)),
+            )
+            saveDays()
+            saveSettings()
+        }
+        onTimerFinished?.invoke()
+        val next = when (mode) {
+            TimerMode.Focus -> if (completedSessions > 0 && completedSessions % sessionsBeforeLong == 0) TimerMode.Long else TimerMode.Short
+            else -> TimerMode.Focus
+        }
+        mode = next
+        totalSeconds = secondsOf(next)
+        secondsLeft = totalSeconds
+        if (autoStart && !skipped) {
+            running = false
+            // 交给界面下一帧启动（需要 CoroutineScope）
+            pendingAutoStart = true
+        } else {
+            running = false
+        }
+    }
+
+    /** complete() 里不能直接起协程，交给界面消费 */
+    var pendingAutoStart by mutableStateOf(false); private set
+
+    fun consumeAutoStart(scope: CoroutineScope) {
+        if (!pendingAutoStart) return
+        pendingAutoStart = false
+        start(scope)
+    }
+
+    /* ================= 设置读写 ================= */
+    fun levelUp(key: String, delta: Int): Int {
+        val (cur, min, max) = when (key) {
+            "focusMinutes" -> Triple(focusMinutes, 1, 90)
+            "shortMinutes" -> Triple(shortMinutes, 1, 30)
+            "longMinutes" -> Triple(longMinutes, 1, 60)
+            else -> Triple(sessionsBeforeLong, 2, 8)
+        }
+        val next = (cur + delta).coerceIn(min, max)
+        when (key) {
+            "focusMinutes" -> focusMinutes = next
+            "shortMinutes" -> shortMinutes = next
+            "longMinutes" -> longMinutes = next
+            else -> sessionsBeforeLong = next
+        }
+        if (!running && (mode == TimerMode.Focus && key == "focusMinutes" ||
+                mode == TimerMode.Short && key == "shortMinutes" ||
+                mode == TimerMode.Long && key == "longMinutes")) {
+            totalSeconds = secondsOf(mode)
+            secondsLeft = totalSeconds
+        }
+        saveSettings()
+        return next
+    }
+
+    fun cycleTheme(systemDark: Boolean) {
+        theme = when (theme) {
+            "system" -> if (systemDark) "light" else "dark"
+            "light" -> "dark"
+            "dark" -> "aurora"
+            else -> "light"
+        }
+        saveSettings()
+    }
+
+    fun effectiveDark(systemDark: Boolean): Boolean = when (theme) {
+        "light" -> false
+        "dark", "aurora" -> true
+        else -> systemDark
+    }
+
+    fun addTodo(text: String) {
+        val t = text.trim()
+        if (t.isEmpty()) return
+        todos.add(0, TodoItem(t))
+        saveTodos()
+    }
+
+    fun toggleTodo(index: Int) {
+        todos[index] = todos[index].let { it.copy(done = !it.done) }
+        saveTodos()
+    }
+
+    fun removeTodo(index: Int) {
+        todos.removeAt(index)
+        saveTodos()
+    }
+
+    fun setTask(s: String) {
+        taskName = s
+        storage.saveString("taskName", s)
+    }
+
+    fun showToast(text: String, icon: String = "check") {
+        toast = ToastMsg(text, icon)
+    }
+
+    fun playTone() {
+        if (sound) platformPlaySound()
+    }
+
+    fun saveSettings() {
+        storage.saveInt("focusMinutes", focusMinutes)
+        storage.saveInt("shortMinutes", shortMinutes)
+        storage.saveInt("longMinutes", longMinutes)
+        storage.saveInt("sessionsBeforeLong", sessionsBeforeLong)
+        storage.saveBoolean("autoStart", autoStart)
+        storage.saveBoolean("sound", sound)
+        storage.saveBoolean("notify", notify)
+        storage.saveBoolean("miniTimer", miniTimer)
+        storage.saveBoolean("overscroll", overscroll)
+        storage.saveString("theme", theme)
+        storage.saveString("accent", accent)
+        storage.saveString("bgMode", bgMode)
+        storage.saveString("startTone", startTone)
+        storage.saveString("endTone", endTone)
+        storage.saveInt("cycle", completedSessions)
+    }
+
+    /** 跨天：把统计切到新的一天（对应网页 ensureToday） */
     fun checkDailyReset() {
-        val today = todayIsoDate()
-        if (lastResetDate.value != today) {
-            sessions = 0
-            sessionN = 1
-            lastResetDate.value = today
+        val k = todayKey()
+        if (k != lastDay) {
+            lastDay = k
+            completedSessions = 0
             saveSettings()
         }
     }
 
-    private fun onComplete() {
-        val dur = when (mode) { Mode.Work -> cfgWork; Mode.Short -> cfgShort; Mode.Long -> cfgLong }
-        history.add(HistoryEntry(mode, dur))
-        if (history.size > 200) history.removeRange(0, history.size - 200)
-        if (mode == Mode.Work) { sessions++; sessionN = (sessions % 4) + 1 }
-        onTimerFinished?.invoke()
-        if (autoStart) autoSwitch()
+    private var lastDay = todayKey()
+
+    /* ================= 序列化（storage 只有 String/Int/Bool） ================= */
+    private fun loadDays() {
+        val raw = storage.loadString("days", "")
+        raw.split(";").filter { it.isNotBlank() }.forEach { entry ->
+            val p = entry.split(",")
+            if (p.size == 4) {
+                val s = p[1].toIntOrNull() ?: 0
+                val f = p[2].toIntOrNull() ?: 0
+                val b = p[3].toIntOrNull() ?: 0
+                days[p[0]] = DayStat(s, f, b)
+            }
+        }
     }
 
-    private fun autoSwitch() {
-        mode = when (mode) { Mode.Work -> if (sessions % 4 == 0) Mode.Long else Mode.Short; else -> Mode.Work }
-        remain = secsOf(mode); total = remain
+    private fun saveDays() {
+        storage.saveString("days", days.entries.joinToString(";") { "${it.key},${it.value.sessions},${it.value.focusMin},${it.value.best}" })
+    }
+
+    private fun loadTodos() {
+        val raw = storage.loadString("todos", "")
+        raw.split("\u0001").filter { it.isNotBlank() }.forEach { item ->
+            val done = item.startsWith("1:")
+            todos.add(TodoItem(item.substring(2), done))
+        }
+    }
+
+    private fun saveTodos() {
+        storage.saveString("todos", todos.joinToString("\u0001") { (if (it.done) "1:" else "0:") + it.text })
     }
 }
+
+/* ---------- 音色（对应网页 TONES） ---------- */
+val TONES: List<Pair<String, String>> = listOf(
+    "chime" to "风铃",
+    "bell" to "铃声",
+    "marimba" to "马林巴",
+    "wood" to "木鱼",
+    "beep" to "提示音",
+    "custom" to "自定义",
+    "none" to "无声",
+)
