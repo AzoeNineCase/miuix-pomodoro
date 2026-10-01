@@ -155,9 +155,10 @@ private fun TimerRing(state: State, size: Dp) {
 
             val p = state.progress.coerceIn(0f, 1f)
             if (p > 0f) {
-                // 发光近似：CSS 里是 drop-shadow(0 0 10px primary@60%)
-                drawArc(c.primary.copy(alpha = 0.10f), -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw * 2f, cap = StrokeCap.Round))
-                drawArc(c.primary.copy(alpha = 0.18f), -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw * 1.35f, cap = StrokeCap.Round))
+                // 发光近似：CSS 里是 drop-shadow(0 0 10px primary@60%)（10px 模糊、60% 不透明度）
+                drawArc(c.primary.copy(alpha = 0.06f), -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw * 3.2f, cap = StrokeCap.Round))
+                drawArc(c.primary.copy(alpha = 0.12f), -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw * 2.2f, cap = StrokeCap.Round))
+                drawArc(c.primary.copy(alpha = 0.22f), -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw * 1.5f, cap = StrokeCap.Round))
                 drawArc(c.primary, -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw, cap = StrokeCap.Round))
             }
         }

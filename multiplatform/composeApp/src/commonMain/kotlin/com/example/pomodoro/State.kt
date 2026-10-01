@@ -155,8 +155,12 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
     }
 
     /* ================= 派生值 ================= */
+    /**
+     * 进度环的比例。网页里 `frac = remaining / total`，即**初始为满圈、随时间逐渐变空**
+     * （updateRing(): strokeDashoffset = C * (1 - frac)）。
+     */
     val progress: Float
-        get() = if (totalSeconds > 0) (totalSeconds - secondsLeft).toFloat() / totalSeconds else 0f
+        get() = if (totalSeconds > 0) secondsLeft.toFloat() / totalSeconds else 0f
 
     val timeText: String get() = "${pad2(secondsLeft / 60)}:${pad2(secondsLeft % 60)}"
 
