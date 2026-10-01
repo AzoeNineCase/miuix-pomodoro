@@ -51,6 +51,29 @@ import com.example.pomodoro.W
  * 通用组件：尺寸/圆角/字重全部对应 index.html 的 CSS 规格
  * ============================================================ */
 
+/**
+ * 毛玻璃底色：极光主题下网页用的是各自的白透明度值（而非统一的 surface-container）：
+ *   .segment rgba(255,255,255,.08) / .stepper .08 / .tone-chip .08 / .btn-ghost .1 /
+ *   .switch .14 / .segment button.active .16 / .ring-track .16 / .card .07
+ * 原生无法做真正的 backdrop 采样（Compose 无背层模糊），但底色、描边与阴影可完全对齐；
+ * 极光背景本身是低频渐变，模糊后与不模糊的视觉差异极小。
+ */
+@Composable
+private fun glassSurface(level: Int): Color {
+    val c = AppTheme.colors
+    if (!c.aurora) return when (level) {
+        2 -> c.surface            // .segment button.active
+        3 -> c.containerHighest   // .switch 轨道
+        else -> c.containerHigh   // .segment / .stepper / .tone-chip / .btn-ghost
+    }
+    return Color.White.copy(alpha = when (level) {
+        2 -> 0.16f  // .segment button.active（极光）
+        3 -> 0.14f  // .switch（极光）
+        1 -> 0.10f  // .btn-ghost（极光）
+        else -> 0.08f
+    })
+}
+
 /** 图标（Material Symbols Rounded 字形，与网页同字体同设置） */
 @Composable
 fun Symbol(name: String, size: Dp, color: Color, modifier: Modifier = Modifier) {
@@ -109,13 +132,13 @@ fun Segment(
     Row(
         modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(c.containerHigh)
+            .background(glassSurface(0))
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         items.forEachIndexed { i, label ->
             val active = i == selectedIndex
-            val bg by animateColorAsState(if (active) c.surface else Color.Transparent, tween(350))
+            val bg by animateColorAsState(if (active) glassSurface(2) else Color.Transparent, tween(350))
             val fg by animateColorAsState(if (active) c.onSurface else c.variant, tween(350))
             Box(
                 Modifier
@@ -151,7 +174,7 @@ fun Segment(
 fun Stepper(value: Int, onDelta: (Int) -> Unit) {
     val c = AppTheme.colors
     Row(
-        Modifier.clip(RoundedCornerShape(12.dp)).background(c.containerHigh).padding(4.dp),
+        Modifier.clip(RoundedCornerShape(12.dp)).background(glassSurface(0)).padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         StepperButton("remove") { onDelta(-1) }
@@ -190,7 +213,7 @@ private fun StepperButton(icon: String, onClick: () -> Unit) {
 @Composable
 fun AppSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
     val c = AppTheme.colors
-    val track by animateColorAsState(if (checked) c.primary else c.containerHighest, tween(300))
+    val track by animateColorAsState(if (checked) c.primary else glassSurface(3), tween(300))
     val knob by animateColorAsState(if (checked) c.onPrimary else c.onSurface, tween(300))
     Box(
         Modifier
@@ -241,7 +264,7 @@ fun GhostButton(icon: String, onClick: () -> Unit) {
             .size(52.dp)
             .scale(scale)
             .clip(RoundedCornerShape(18.dp))
-            .background(c.containerHigh)
+            .background(glassSurface(1))
             .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Symbol(icon, 24.dp, c.onSurface) }
@@ -340,7 +363,7 @@ fun SettingRow(
 @Composable
 fun Chip(text: String, active: Boolean, onClick: () -> Unit) {
     val c = AppTheme.colors
-    val bg by animateColorAsState(if (active) c.primary else c.containerHigh, tween(300))
+    val bg by animateColorAsState(if (active) c.primary else glassSurface(0), tween(300))
     val fg by animateColorAsState(if (active) c.onPrimary else c.variant, tween(300))
     Box(
         Modifier
