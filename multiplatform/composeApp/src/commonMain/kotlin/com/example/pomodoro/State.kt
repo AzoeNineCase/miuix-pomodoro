@@ -119,6 +119,8 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
     var theme by mutableStateOf(storage.loadString("theme", "system"))
     var accent by mutableStateOf(storage.loadString("accent", "#3482FF"))
     var bgMode by mutableStateOf(storage.loadString("bgMode", "gradient"))
+    /** 自定义背景图链接（对应网页 settings.bgUrl） */
+    var bgUrl by mutableStateOf(storage.loadString("bgUrl", "")); private set
     var startTone by mutableStateOf(storage.loadString("startTone", "chime"))
     var endTone by mutableStateOf(storage.loadString("endTone", "chime"))
 
@@ -355,6 +357,26 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
         storage.saveString("taskName", s)
     }
 
+    /** 应用自定义背景图（图片下载/解码由平台层负责，见 Platform 的 loadImage…） */
+    fun applyBackgroundUrl(url: String) {
+        val u = url.trim()
+        if (u.isEmpty()) {
+            showToast("请输入图片链接", "error")
+            return
+        }
+        bgUrl = u
+        bgMode = "custom"
+        saveSettings()
+        showToast("已应用背景", "image")
+    }
+
+    fun clearBackground() {
+        bgUrl = ""
+        bgMode = "gradient"
+        saveSettings()
+        showToast("已恢复渐变背景", "palette")
+    }
+
     fun showToast(text: String, icon: String = "check") {
         toast = ToastMsg(text, icon)
     }
@@ -376,6 +398,7 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
         storage.saveString("theme", theme)
         storage.saveString("accent", accent)
         storage.saveString("bgMode", bgMode)
+        storage.saveString("bgUrl", bgUrl)
         storage.saveString("startTone", startTone)
         storage.saveString("endTone", endTone)
         storage.saveInt("cycle", completedSessions)

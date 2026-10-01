@@ -461,14 +461,49 @@ fun SettingsPage(state: State) {
                 state.saveSettings()
             }
             Spacer(Modifier.height(16.dp))
-            Text(
-                when (state.bgMode) {
-                    "custom" -> "可粘贴图片链接，或从本地选择图片作为背景。"
-                    "api" -> "可选择 API 来源；开启后每隔 5 分钟自动换图。"
-                    else -> "使用主题自带的渐变背景（浅色 / 深色 / 极光）。"
-                },
-                color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp,
-            )
+            when (state.bgMode) {
+                "custom" -> {
+                    var url by remember { mutableStateOf(state.bgUrl) }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        BasicTextField(
+                            value = url,
+                            onValueChange = { url = it },
+                            singleLine = true,
+                            textStyle = TextStyle(color = c.onSurface, fontSize = 14.sp, fontFamily = AppTheme.font),
+                            modifier = Modifier.weight(1f),
+                            decorationBox = { inner ->
+                                Box(
+                                    Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(14.dp)).background(c.containerHigh).padding(horizontal = 14.dp),
+                                    contentAlignment = Alignment.CenterStart,
+                                ) {
+                                    if (url.isEmpty()) Text("粘贴图片链接 https://…", color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp)
+                                    inner()
+                                }
+                            },
+                        )
+                        PrimaryButton(text = "应用", icon = "check", height = 46.dp, fontSize = 14, paddingHorizontal = 18.dp) {
+                            state.applyBackgroundUrl(url)
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        GhostLabel("upload", "上传本地图片") { state.showToast("暂不支持本地选图", "error") }
+                        if (state.bgUrl.isNotEmpty()) {
+                            GhostLabel("close", "清除背景") { state.clearBackground() }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text("可粘贴图片链接，或从本地选择图片作为背景。", color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp)
+                }
+                "api" -> {
+                    Text("可选择 API 来源；开启后每隔 5 分钟自动换图。", color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        GhostLabel("shuffle", "换一张") { state.showToast("API 源待接入", "error") }
+                    }
+                }
+                else -> Text("使用主题自带的渐变背景（浅色 / 深色 / 极光）。", color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp)
+            }
         }
 
         // 关于入口
