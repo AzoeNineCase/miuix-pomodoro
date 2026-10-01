@@ -1,0 +1,4807 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title>番茄钟 · Miuix</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%233482FF' d='M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm4.2 14.2L11 13.7V7h1.5v5.6l4.5 2.7Z'/%3E%3C/svg%3E"
+    />
+
+    <!-- 字体：MiSans / Inter 与 Material Symbols 图标，贴近 Miuix 风格 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* =========================== Miuix 主题变量 =========================== */
+      :root {
+        color-scheme: light dark;
+
+        /* 默认主题色（蓝 #3482FF 种子） */
+        --miuix-primary: #3482ff;
+        --miuix-primary-container: #5d9bff;
+        --miuix-on-primary: #ffffff;
+        --miuix-on-primary-variant: #aecdff;
+        --miuix-soft: rgba(52, 130, 255, 0.12);
+
+        /* 面与文字 */
+        --miuix-background: #f4f5f7;
+        --miuix-surface: #ffffff;
+        --miuix-surface-container: #ffffff;
+        --miuix-surface-container-high: #ecedf0;
+        --miuix-surface-container-highest: #e4e5e8;
+        --miuix-on-surface: #0f0f0f;
+        --miuix-on-surface-variant: #959595;
+        --miuix-outline: #d9d9d9;
+        --miuix-divider: #e6e6e6;
+
+        /* 功能色 */
+        --miuix-focus: #3482ff;
+        --miuix-short: #36d167;
+        --miuix-long: #00bcd4;
+        --miuix-error: #e94634;
+        --miuix-danger-soft: rgba(233, 70, 52, 0.1);
+
+        --miuix-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        --miuix-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.1);
+
+        /* 弹簧缓动曲线（贴近 folmeSpring 手感） */
+        --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+        --ease: cubic-bezier(0.4, 0, 0.2, 1);
+        /* miuix-nav 程序化转场（Miuix 预置）：固定 500ms，
+           曲线是 NavProgrammaticEasing = NavSettleEasing(response .8, damping .95)，
+           无过冲；下面这个 cubic-bezier 是它误差 < 0.09 的最佳近似 */
+        --nav-dur: 500ms;
+        --nav-ease: cubic-bezier(0.4, 1.2, 0.95, 0.97);
+
+        --font:
+          "MiSans", "Inter", ui-sans-serif, system-ui, -apple-system,
+          "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+        --font-num: "Inter", ui-monospace, "SF Mono", "Roboto Mono", monospace;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --miuix-primary: #277af7;
+          --miuix-primary-container: #338fe4;
+          --miuix-on-primary: #ffffff;
+          --miuix-on-primary-variant: #99c7f1;
+          --miuix-soft: rgba(52, 130, 255, 0.2);
+
+          --miuix-background: #1a1a1c;
+          --miuix-surface: #242426;
+          --miuix-surface-container: #2a2a2d;
+          --miuix-surface-container-high: #323236;
+          --miuix-surface-container-highest: #3a3a3f;
+          --miuix-on-surface: #e6e6e6;
+          --miuix-on-surface-variant: #8c93b0;
+          --miuix-outline: #4a4a4e;
+          --miuix-divider: #3a3a3e;
+
+          --miuix-focus: #277af7;
+          --miuix-short: #36d167;
+          --miuix-long: #00bcd4;
+          --miuix-error: #f12522;
+          --miuix-danger-soft: rgba(241, 37, 34, 0.16);
+
+          --miuix-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+          --miuix-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+        }
+      }
+
+      /* 浅色手动覆盖 */
+      [data-theme="light"] {
+        color-scheme: light;
+        --miuix-primary: #3482ff;
+        --miuix-primary-container: #5d9bff;
+        --miuix-on-primary: #ffffff;
+        --miuix-on-primary-variant: #aecdff;
+        --miuix-soft: rgba(52, 130, 255, 0.12);
+        --miuix-background: #f4f5f7;
+        --miuix-surface: #ffffff;
+        --miuix-surface-container: #ffffff;
+        --miuix-surface-container-high: #ecedf0;
+        --miuix-surface-container-highest: #e4e5e8;
+        --miuix-on-surface: #0f0f0f;
+        --miuix-on-surface-variant: #959595;
+        --miuix-outline: #d9d9d9;
+        --miuix-divider: #e6e6e6;
+        --miuix-focus: #3482ff;
+        --miuix-short: #36d167;
+        --miuix-long: #00bcd4;
+        --miuix-error: #e94634;
+        --miuix-danger-soft: rgba(233, 70, 52, 0.1);
+        --miuix-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+        --miuix-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.1);
+      }
+      [data-theme="dark"] {
+        color-scheme: dark;
+        --miuix-primary: #277af7;
+        --miuix-primary-container: #338fe4;
+        --miuix-on-primary: #ffffff;
+        --miuix-on-primary-variant: #99c7f1;
+        --miuix-soft: rgba(52, 130, 255, 0.2);
+        --miuix-background: #1a1a1c;
+        --miuix-surface: #242426;
+        --miuix-surface-container: #2a2a2d;
+        --miuix-surface-container-high: #323236;
+        --miuix-surface-container-highest: #3a3a3f;
+        --miuix-on-surface: #e6e6e6;
+        --miuix-on-surface-variant: #8c93b0;
+        --miuix-outline: #4a4a4e;
+        --miuix-divider: #3a3a3e;
+        --miuix-focus: #277af7;
+        --miuix-short: #36d167;
+        --miuix-long: #00bcd4;
+        --miuix-error: #f12522;
+        --miuix-danger-soft: rgba(241, 37, 34, 0.16);
+        --miuix-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+        --miuix-shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.55);
+      }
+
+      /* 极光主题：深蓝→紫渐变背景 + 磨砂玻璃（前景模糊） */
+      [data-theme="aurora"] {
+        color-scheme: dark;
+        --miuix-primary: #8b7bff;
+        --miuix-primary-container: #6c5ce7;
+        --miuix-on-primary: #ffffff;
+        --miuix-on-primary-variant: #cbb8ff;
+        --miuix-soft: rgba(139, 123, 255, 0.22);
+        --miuix-background: #0b0d1f;
+        --miuix-surface: rgba(255, 255, 255, 0.08);
+        --miuix-surface-container: rgba(255, 255, 255, 0.07);
+        --miuix-surface-container-high: rgba(255, 255, 255, 0.12);
+        --miuix-surface-container-highest: rgba(255, 255, 255, 0.16);
+        --miuix-on-surface: #eef0ff;
+        --miuix-on-surface-variant: #aab3e2;
+        --miuix-outline: rgba(255, 255, 255, 0.14);
+        --miuix-divider: rgba(255, 255, 255, 0.1);
+        --miuix-focus: #8b7bff;
+        --miuix-short: #36d167;
+        --miuix-long: #00bcd4;
+        --miuix-error: #ff6b81;
+        --miuix-danger-soft: rgba(255, 107, 129, 0.18);
+        --miuix-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
+        --miuix-shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.46);
+      }
+
+      /* =========================== 基础重置 =========================== */
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        /* 越界回弹由页面自己实现（见 enableOverscrollStretch）。
+           这里关掉浏览器自带的滚动链与下拉刷新，避免两套效果叠加。 */
+        overscroll-behavior: none;
+      }
+      body {
+        font-family: var(--font);
+        background: var(--miuix-background);
+        color: var(--miuix-on-surface);
+        transition:
+          background-color 0.55s var(--ease),
+          color 0.55s var(--ease);
+        overflow: hidden;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      /* =========================== 极光渐变背景层 =========================== */
+      /* 外层只管可见性与定位；渐变与漂移交给内层 > i。
+
+         ⚡ 性能：原实现用 animation 动 background-position。这个属性无法上合成器，
+         浏览器每帧都要重绘整屏，更要命的是——页面里所有 backdrop-filter 的"背景"
+         都变了，于是每帧都要重算一遍模糊。手机 DPR 3 下等于每帧重新上传约 12MB
+         纹理 + 十几次高斯模糊，极光主题的帧率就是这样被拖垮的。
+
+         改成 transform（合成层位移）后不再重绘；再用 steps(130) 把更新频率压到
+         约 10Hz —— 每个 step 只移动 0.8px（横）/ 1.8px（纵），肉眼不可察觉，
+         而模糊重算次数降到约 1/6。
+         位移量与旧版严格等价（已逐像素验证 max diff = 2 为量化误差）。 */
+      .aurora-bg {
+        position: fixed;
+        inset: 0;
+        z-index: -5;
+        pointer-events: none;
+        opacity: 0;
+        overflow: hidden;
+        transition: opacity 0.8s var(--ease);
+      }
+      .aurora-bg > i {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 180%;
+        height: 180%;
+        display: block;
+        background:
+          radial-gradient(
+            58% 58% at 18% 22%,
+            rgba(124, 77, 255, 0.6),
+            transparent 62%
+          ),
+          radial-gradient(
+            48% 48% at 82% 16%,
+            rgba(0, 188, 212, 0.42),
+            transparent 62%
+          ),
+          radial-gradient(
+            52% 52% at 72% 82%,
+            rgba(52, 130, 255, 0.5),
+            transparent 62%
+          ),
+          radial-gradient(
+            46% 46% at 26% 84%,
+            rgba(236, 72, 153, 0.36),
+            transparent 62%
+          ),
+          linear-gradient(135deg, #080a1c 0%, #14102e 52%, #0b1030 100%);
+        background-size: 100% 100%;
+        will-change: transform;
+        animation: auroraDrift 26s steps(130, end) infinite;
+        /* 非极光主题下这一层根本看不见，别白跑动画 */
+        animation-play-state: paused;
+      }
+      [data-theme="aurora"] .aurora-bg {
+        opacity: 1;
+      }
+      [data-theme="aurora"] .aurora-bg > i {
+        animation-play-state: running;
+      }
+      /* 与旧 background-position 位移的换算：
+         background-position: p%（图像尺寸 180%）⇒ 图像左边缘 = -0.8·p% 视口宽，
+         即 translateX = -0.8·p% ÷ 180% = -0.4444·p%（百分比基于内层自身宽）。
+         旧关键帧 0%→(0%,20%)、50%→(100%,80%)、100%→(0%,20%)。 */
+      @keyframes auroraDrift {
+        0% {
+          transform: translate3d(0%, -8.8889%, 0);
+        }
+        50% {
+          transform: translate3d(-44.4444%, -35.5556%, 0);
+        }
+        100% {
+          transform: translate3d(0%, -8.8889%, 0);
+        }
+      }
+
+      /* =========================== 用户/动漫背景图 =========================== */
+      .bg-image {
+        position: fixed;
+        inset: 0;
+        z-index: -3;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.6s var(--ease);
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+      .bg-image.show {
+        opacity: 1;
+      }
+
+      /* =========================== 主题切换渐变过渡层 =========================== */
+      .theme-flash {
+        position: fixed;
+        inset: 0;
+        z-index: 900;
+        pointer-events: none;
+        opacity: 0;
+        overflow: hidden;
+        background: radial-gradient(
+          circle at 50% 46%,
+          color-mix(in srgb, var(--miuix-primary) 42%, transparent) 0%,
+          transparent 60%
+        );
+      }
+      .theme-flash.run {
+        animation: themeWash 0.75s var(--ease) forwards;
+      }
+      @keyframes themeWash {
+        0% {
+          opacity: 0;
+          transform: scale(0.5);
+        }
+        45% {
+          opacity: 0.55;
+        }
+        100% {
+          opacity: 0;
+          transform: scale(1.4);
+        }
+      }
+
+      /* 极光主题：磨砂玻璃（前景模糊）覆盖 */
+      [data-theme="aurora"] .card {
+        background: var(--miuix-surface-container);
+        border-color: var(--miuix-divider);
+        box-shadow: var(--miuix-shadow);
+        backdrop-filter: blur(16px) saturate(1.5);
+        -webkit-backdrop-filter: blur(16px) saturate(1.5);
+      }
+      [data-theme="aurora"] .segment {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+      [data-theme="aurora"] .segment button {
+        color: var(--miuix-on-surface-variant);
+      }
+      [data-theme="aurora"] .segment button.active {
+        background: rgba(255, 255, 255, 0.16);
+        color: var(--miuix-on-surface);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
+      }
+      [data-theme="aurora"] .stat-cell {
+        background: rgba(255, 255, 255, 0.07);
+        border-color: var(--miuix-divider);
+        backdrop-filter: blur(12px) saturate(1.4);
+        -webkit-backdrop-filter: blur(12px) saturate(1.4);
+      }
+      [data-theme="aurora"] .stepper {
+        background: rgba(255, 255, 255, 0.08);
+      }
+      [data-theme="aurora"] .stepper button:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+      [data-theme="aurora"] .switch {
+        background: rgba(255, 255, 255, 0.14);
+      }
+      [data-theme="aurora"] .btn-ghost {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--miuix-on-surface);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+      }
+      [data-theme="aurora"] .btn-ghost:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+      [data-theme="aurora"] .icon-btn:hover {
+        background: rgba(255, 255, 255, 0.12);
+      }
+      [data-theme="aurora"] .ring-track {
+        stroke: rgba(255, 255, 255, 0.16);
+      }
+
+      /* 当使用背景图时，深/浅色主题也呈现磨砂玻璃（前景模糊） */
+      .bg-image::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(
+          130% 130% at 50% 38%,
+          rgba(8, 10, 24, 0.1) 0%,
+          rgba(8, 10, 24, 0.32) 100%
+        );
+      }
+      [data-bg-active="true"] .card {
+        background: color-mix(
+          in srgb,
+          var(--miuix-surface-container) 52%,
+          transparent
+        );
+        border-color: color-mix(in srgb, var(--miuix-divider) 70%, transparent);
+        backdrop-filter: blur(20px) saturate(1.6);
+        -webkit-backdrop-filter: blur(20px) saturate(1.6);
+      }
+      [data-bg-active="true"] .segment {
+        background: color-mix(
+          in srgb,
+          var(--miuix-surface-container-high) 58%,
+          transparent
+        );
+        backdrop-filter: blur(10px) saturate(1.2);
+        -webkit-backdrop-filter: blur(10px) saturate(1.2);
+      }
+      [data-bg-active="true"] .segment button.active {
+        background: color-mix(in srgb, var(--miuix-surface) 60%, transparent);
+      }
+      [data-bg-active="true"] .stat-cell {
+        background: color-mix(in srgb, var(--miuix-surface) 52%, transparent);
+        backdrop-filter: blur(14px) saturate(1.5);
+        -webkit-backdrop-filter: blur(14px) saturate(1.5);
+      }
+      [data-bg-active="true"] .stepper {
+        background: color-mix(
+          in srgb,
+          var(--miuix-surface-container-high) 58%,
+          transparent
+        );
+      }
+      [data-bg-active="true"] .btn-ghost {
+        background: color-mix(
+          in srgb,
+          var(--miuix-surface-container-high) 52%,
+          transparent
+        );
+        backdrop-filter: blur(10px) saturate(1.3);
+        -webkit-backdrop-filter: blur(10px) saturate(1.3);
+      }
+      [data-bg-active="true"] .icon-btn:hover {
+        background: color-mix(
+          in srgb,
+          var(--miuix-surface-container-high) 60%,
+          transparent
+        );
+      }
+      [data-bg-active="true"] .todo-item {
+        background: color-mix(in srgb, var(--miuix-surface) 52%, transparent);
+        backdrop-filter: blur(14px) saturate(1.5);
+        -webkit-backdrop-filter: blur(14px) saturate(1.5);
+      }
+      [data-bg-active="true"] .ring-track {
+        stroke: color-mix(in srgb, var(--miuix-outline) 60%, transparent);
+      }
+
+      .material-symbols-rounded {
+        font-variation-settings:
+          "FILL" 0,
+          "wght" 400,
+          "GRAD" 0,
+          "opsz" 24;
+        font-size: 24px;
+        line-height: 1;
+        user-select: none;
+      }
+
+      /* =========================== 加载页（Miuix 双进度条） =========================== */
+      #loading {
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--miuix-background);
+        color: var(--miuix-on-surface);
+        transition: opacity 0.4s var(--ease);
+      }
+      #loading.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #loading-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 18px;
+        padding: 24px;
+      }
+      #loading-logo {
+        width: 72px;
+        height: 72px;
+        border-radius: 20px;
+        display: grid;
+        place-items: center;
+        background: var(--miuix-soft);
+        color: var(--miuix-primary);
+        font-size: 40px;
+        animation: breathe 2.2s var(--ease) infinite;
+      }
+      #loading-title {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+      }
+      .loading-row {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        width: 200px;
+      }
+      .loading-bar {
+        width: 200px;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--miuix-surface-container-highest);
+        overflow: hidden;
+      }
+      .loading-bar-fill {
+        height: 100%;
+        width: 0;
+        border-radius: 2px;
+        background: var(--miuix-primary);
+        transition: width 0.2s var(--ease);
+      }
+      .loading-status {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 200px;
+        font-size: 13px;
+        color: var(--miuix-on-surface-variant);
+        font-variant-numeric: tabular-nums;
+      }
+      @keyframes breathe {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.08);
+        }
+      }
+      #loading.indeterminate #loading-bar-fill-app {
+        width: 40%;
+        animation: indeterminate 1.1s var(--ease) infinite;
+      }
+      @keyframes indeterminate {
+        0% {
+          transform: translateX(-120%);
+        }
+        100% {
+          transform: translateX(260%);
+        }
+      }
+
+      /* =========================== 应用外壳 =========================== */
+      #app {
+        height: 100%;
+        display: grid;
+        grid-template-columns: 88px 1fr;
+        grid-template-rows: 1fr;
+        min-height: 0;
+      }
+
+      /* 导航栏（左侧 88px） */
+      .rail {
+        background: color-mix(in srgb, var(--miuix-surface) 58%, transparent);
+        border-right: 1px solid var(--miuix-divider);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 16px 0;
+        gap: 6px;
+        backdrop-filter: blur(24px) saturate(1.6);
+        -webkit-backdrop-filter: blur(24px) saturate(1.6);
+        box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.04);
+        transition:
+          background-color 0.4s var(--ease),
+          border-color 0.4s var(--ease);
+      }
+      .rail-item {
+        width: 64px;
+        padding: 10px 0;
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        color: var(--miuix-on-surface-variant);
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        transition:
+          background-color 0.35s var(--ease),
+          color 0.35s var(--ease),
+          transform 0.35s var(--spring);
+        will-change: transform;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .rail-item .material-symbols-rounded {
+        font-size: 26px;
+        transition: transform 0.35s var(--spring);
+      }
+      .rail-item:hover {
+        background: var(--miuix-surface-container-high);
+        color: var(--miuix-on-surface);
+        transform: translateY(-1px);
+      }
+      .rail-item.active {
+        background: var(--miuix-soft);
+        color: var(--miuix-primary);
+      }
+      .rail-item.active .material-symbols-rounded {
+        transform: scale(1.14);
+      }
+      .rail-item:active {
+        transform: scale(0.9);
+      }
+      .rail-sep {
+        flex: 1;
+      }
+      .rail-brand {
+        width: 56px;
+        height: 56px;
+        border-radius: 16px;
+        display: grid;
+        place-items: center;
+        background: var(--miuix-primary);
+        color: var(--miuix-on-primary);
+        font-size: 28px;
+        box-shadow: var(--miuix-shadow);
+      }
+
+      /* =========================== 主内容 =========================== */
+      .main {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        max-width: 760px;
+        margin: 0 auto;
+        width: 100%;
+        height: 100%;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 22px 28px 14px;
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        background: color-mix(
+          in srgb,
+          var(--miuix-background) 52%,
+          transparent
+        );
+        backdrop-filter: blur(24px) saturate(1.8);
+        -webkit-backdrop-filter: blur(24px) saturate(1.8);
+        border-bottom: 1px solid var(--miuix-divider);
+        box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+        transition:
+          background-color 0.5s var(--ease),
+          border-color 0.5s var(--ease);
+      }
+      .topbar-title {
+        margin-right: auto;
+      }
+      .topbar-title h1 {
+        margin: 0;
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .topbar-title p {
+        margin: 2px 0 0;
+        font-size: 13px;
+        color: var(--miuix-on-surface-variant);
+      }
+      .icon-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        display: grid;
+        place-items: center;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        color: var(--miuix-on-surface);
+        transition:
+          background-color 0.3s var(--ease),
+          color 0.3s var(--ease),
+          transform 0.35s var(--spring);
+        will-change: transform;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .icon-btn:hover {
+        background: var(--miuix-surface-container-high);
+        transform: translateY(-1px);
+      }
+      .icon-btn:active {
+        transform: scale(0.88);
+      }
+      .icon-btn.primary {
+        background: var(--miuix-soft);
+        color: var(--miuix-primary);
+      }
+
+      .content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px 28px 48px;
+        scroll-behavior: smooth;
+        /* 边界处的越界不再向上传递（否则会触发浏览器/WebView 自带的回弹） */
+        overscroll-behavior: none;
+      }
+      .content::-webkit-scrollbar {
+        width: 8px;
+      }
+      .content::-webkit-scrollbar-thumb {
+        background: var(--miuix-outline);
+        border-radius: 4px;
+      }
+
+      /* =========================== 卡片 =========================== */
+      .card {
+        background: var(--miuix-surface-container);
+        border: 1px solid var(--miuix-divider);
+        border-radius: 20px;
+        box-shadow: var(--miuix-shadow);
+        padding: 26px;
+        transition:
+          background-color 0.4s var(--ease),
+          border-color 0.4s var(--ease);
+      }
+      .card-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--miuix-on-surface-variant);
+        letter-spacing: 0.2px;
+      }
+      .card-title strong {
+        color: var(--miuix-on-surface);
+      }
+
+      /* 分段按钮 */
+      .segment {
+        display: flex;
+        gap: 4px;
+        padding: 4px;
+        background: var(--miuix-surface-container-high);
+        border-radius: 16px;
+      }
+      .segment button {
+        flex: 1;
+        padding: 10px 14px;
+        border: none;
+        border-radius: 12px;
+        background: transparent;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--miuix-on-surface-variant);
+        transition:
+          background-color 0.35s var(--ease),
+          color 0.35s var(--ease),
+          transform 0.35s var(--spring),
+          box-shadow 0.35s var(--ease);
+        position: relative;
+        will-change: transform;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .segment button:active {
+        transform: scale(0.96);
+      }
+      .segment button.active {
+        background: var(--miuix-surface);
+        color: var(--miuix-on-surface);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+      .segment button.active::before {
+        content: "";
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 6px;
+        height: 3px;
+        border-radius: 2px;
+        background: var(--miuix-primary);
+        animation: growbar 0.3s var(--spring);
+      }
+      @keyframes growbar {
+        from {
+          transform: scaleX(0);
+        }
+        to {
+          transform: scaleX(1);
+        }
+      }
+
+      /* =========================== 计时器 =========================== */
+      .timer-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 34px 24px 30px;
+        gap: 32px;
+      }
+      .timer-ring {
+        --ring: clamp(230px, 62vw, 300px);
+        position: relative;
+        width: var(--ring);
+        height: var(--ring);
+        animation: popIn 0.6s var(--spring);
+      }
+      .timer-ring svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+        position: relative;
+        z-index: 1;
+      }
+      @keyframes popIn {
+        from {
+          transform: scale(0.9);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+      .ring-track {
+        fill: none;
+        stroke: var(--miuix-surface-container-highest);
+        stroke-width: 12;
+      }
+      .ring-progress {
+        fill: none;
+        stroke: var(--miuix-primary);
+        stroke-width: 12;
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: center;
+        transition:
+          stroke 0.5s var(--ease),
+          stroke-dashoffset 0.3s linear;
+        filter: drop-shadow(
+          0 0 10px color-mix(in srgb, var(--miuix-primary) 60%, transparent)
+        );
+      }
+      .timer-center {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        z-index: 2;
+      }
+      .timer-time {
+        font-size: clamp(44px, 13vw, 64px);
+        font-weight: 800;
+        letter-spacing: -2px;
+        font-family: var(--font-num);
+        font-variant-numeric: tabular-nums;
+        color: var(--miuix-on-surface);
+        line-height: 1;
+        transition:
+          font-size 0.3s var(--ease),
+          color 0.4s var(--ease);
+      }
+      .timer-mode-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--miuix-on-surface-variant);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .timer-mode-label .material-symbols-rounded {
+        font-size: 18px;
+      }
+
+      /* 呼吸圆点动画（专注进行时） */
+      .timer-center .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--miuix-primary);
+        opacity: 0;
+      }
+      .timer-ring.running .dot {
+        opacity: 1;
+        animation: pulse 1.6s var(--ease) infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(0.6);
+          opacity: 0.4;
+        }
+        50% {
+          transform: scale(1.3);
+          opacity: 1;
+        }
+      }
+
+      /* 控制按钮 */
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        font-weight: 700;
+        border-radius: 18px;
+        transition:
+          transform 0.35s var(--spring),
+          background-color 0.3s var(--ease),
+          color 0.3s var(--ease),
+          box-shadow 0.3s var(--ease),
+          filter 0.3s var(--ease);
+        will-change: transform;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .btn:active {
+        transform: scale(0.94);
+      }
+      .btn-ghost {
+        width: 52px;
+        height: 52px;
+        border-radius: 18px;
+        background: var(--miuix-surface-container-high);
+        color: var(--miuix-on-surface);
+        font-size: 24px;
+      }
+      .btn-ghost:hover {
+        background: var(--miuix-surface-container-highest);
+      }
+      .btn-primary {
+        height: 60px;
+        padding: 0 34px;
+        font-size: 18px;
+        background: var(--miuix-primary);
+        color: var(--miuix-on-primary);
+        box-shadow: 0 10px 24px
+          color-mix(in srgb, var(--miuix-primary) 35%, transparent);
+      }
+      .btn-primary:hover {
+        filter: brightness(1.05);
+      }
+      .btn-primary.running {
+        background: var(--miuix-surface-container-high);
+        color: var(--miuix-on-surface);
+        box-shadow: none;
+      }
+      .btn-primary .material-symbols-rounded {
+        font-size: 26px;
+        transition: transform 0.4s var(--spring);
+      }
+      #startIcon.pop {
+        animation: iconPop 0.42s var(--spring);
+      }
+      @keyframes iconPop {
+        0% {
+          transform: scale(0.5) rotate(-25deg);
+          opacity: 0;
+        }
+        60% {
+          transform: scale(1.18) rotate(8deg);
+          opacity: 1;
+        }
+        100% {
+          transform: scale(1) rotate(0deg);
+          opacity: 1;
+        }
+      }
+
+      /* 会话圆点 */
+      .session-dots {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .session-dots .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--miuix-surface-container-highest);
+        transition: all 0.3s var(--spring);
+      }
+      .session-dots .dot.done {
+        background: var(--miuix-primary);
+        box-shadow: 0 0 0 4px var(--miuix-soft);
+      }
+      .session-dots .dot.current {
+        animation: pulse 1.6s var(--ease) infinite;
+      }
+
+      /* =========================== 统计 =========================== */
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .stat-cell {
+        background: var(--miuix-surface);
+        border: 1px solid var(--miuix-divider);
+        border-radius: 16px;
+        padding: 20px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        transition:
+          transform 0.3s var(--spring),
+          background-color 0.5s var(--ease),
+          border-color 0.5s var(--ease);
+      }
+      .stat-cell:hover {
+        transform: translateY(-2px);
+      }
+      .stat-cell .val {
+        font-size: 28px;
+        font-weight: 800;
+        font-family: var(--font-num);
+        font-variant-numeric: tabular-nums;
+        color: var(--miuix-primary);
+      }
+      .stat-cell .lab {
+        font-size: 13px;
+        color: var(--miuix-on-surface-variant);
+        font-weight: 600;
+      }
+
+      /* =========================== 设置 =========================== */
+      .setting-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 0;
+        border-bottom: 1px solid var(--miuix-divider);
+      }
+      .setting-row:last-child {
+        border-bottom: none;
+      }
+      .setting-info {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .setting-ico {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        background: var(--miuix-soft);
+        color: var(--miuix-primary);
+        font-size: 22px;
+      }
+      .setting-name {
+        font-weight: 700;
+        font-size: 15px;
+      }
+      .setting-sub {
+        font-size: 12px;
+        color: var(--miuix-on-surface-variant);
+        margin-top: 2px;
+      }
+
+      /* 步进器 */
+      .stepper {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--miuix-surface-container-high);
+        border-radius: 12px;
+        padding: 4px;
+      }
+      .stepper button {
+        width: 34px;
+        height: 34px;
+        border: none;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--miuix-on-surface);
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        font-size: 20px;
+        transition:
+          background-color 0.25s var(--ease),
+          transform 0.3s var(--spring);
+        will-change: transform;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .stepper button:hover {
+        background: var(--miuix-surface-container-highest);
+      }
+      .stepper button:active {
+        transform: scale(0.82);
+      }
+      .stepper .num {
+        min-width: 44px;
+        text-align: center;
+        font-weight: 700;
+        font-family: var(--font-num);
+      }
+
+      /* 开关 */
+      .switch {
+        width: 50px;
+        height: 30px;
+        border-radius: 15px;
+        background: var(--miuix-surface-container-highest);
+        border: none;
+        cursor: pointer;
+        position: relative;
+        transition:
+          background-color 0.3s var(--ease),
+          transform 0.3s var(--spring);
+        will-change: transform;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .switch:active {
+        transform: scale(0.94);
+      }
+      .switch::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: var(--miuix-on-surface);
+        transition: transform 0.3s var(--spring);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      }
+      .switch.on {
+        background: var(--miuix-primary);
+      }
+      .switch.on::after {
+        transform: translateX(20px);
+        background: var(--miuix-on-primary);
+      }
+
+      /* 颜色选择 */
+      .color-row {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .color-swatch {
+        width: 40px;
+        height: 40px;
+        border-radius: 14px;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: transform 0.3s var(--spring);
+        position: relative;
+      }
+      .color-swatch:hover {
+        transform: scale(1.1);
+      }
+      .color-swatch.active {
+        border-color: var(--miuix-on-surface);
+      }
+      .color-swatch.active::after {
+        content: "✓";
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        font-weight: 800;
+        font-size: 18px;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      }
+
+      /* 提示音选择（开始 / 结束各一行） */
+      .tone-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .tone-chip {
+        padding: 9px 15px;
+        border-radius: 12px;
+        border: 1px solid var(--miuix-divider);
+        background: var(--miuix-surface-container-high);
+        color: var(--miuix-on-surface-variant);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background-color 0.3s var(--ease),
+          color 0.3s var(--ease),
+          transform 0.3s var(--spring);
+        -webkit-tap-highlight-color: transparent;
+      }
+      .tone-chip:active {
+        transform: scale(0.94);
+      }
+      .tone-chip.active {
+        background: var(--miuix-primary);
+        border-color: transparent;
+        color: var(--miuix-on-primary);
+      }
+      [data-bg-active="true"] .tone-chip {
+        background: color-mix(
+          in srgb,
+          var(--miuix-surface-container-high) 58%,
+          transparent
+        );
+        backdrop-filter: blur(10px) saturate(1.2);
+        -webkit-backdrop-filter: blur(10px) saturate(1.2);
+      }
+      [data-bg-active="true"] .tone-chip.active {
+        background: var(--miuix-primary);
+        border-color: transparent;
+      }
+      /* 提醒音行尾的「上传」小按钮（⚠️ 别再叫 .mini-btn：那个名字被悬浮迷你计时器用了） */
+      .upload-btn {
+        flex: none;
+        padding: 7px 14px;
+        border-radius: 10px;
+        border: 1px solid var(--miuix-divider);
+        background: transparent;
+        color: var(--miuix-primary);
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+        cursor: pointer;
+        transition:
+          background-color 0.3s var(--ease),
+          transform 0.3s var(--spring);
+        -webkit-tap-highlight-color: transparent;
+      }
+      .upload-btn:active {
+        transform: scale(0.94);
+      }
+      [data-bg-active="true"] .upload-btn {
+        background: color-mix(
+          in srgb,
+          var(--miuix-surface-container-high) 52%,
+          transparent
+        );
+        backdrop-filter: blur(10px) saturate(1.3);
+        -webkit-backdrop-filter: blur(10px) saturate(1.3);
+      }
+
+      /* 页面切换 */
+      .page {
+        display: none;
+        animation: pageIn 0.35s var(--spring);
+      }
+      .page.active {
+        display: block;
+      }
+      @keyframes pageIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px) scale(0.99);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      /* 毛玻璃场景（自定义背景图 / 极光主题）下，入口动画里的 opacity 会让 .page
+         成为新的 Backdrop Root，后代 backdrop-filter 采样不到背景，
+         卡片会先"透明"、动画结束又突然变回模糊。
+
+         ⚠️ 不能用「切换 animation-name」的方式规避：改 animation-name 会让动画
+         整个重播，切换主题时当前页面会重放一次入场动画（表现为"抽搐"一下）。
+         这里改为用 !important 覆盖 opacity —— 动画优先级低于 !important，
+         动画名保持不变（不重播），计算出的 opacity 恒为 1（不产生 Backdrop Root）。 */
+      [data-bg-active="true"] .page,
+      [data-theme="aurora"] .page {
+        opacity: 1 !important;
+      }
+
+      /* 竖直间距：只在同一页内的卡片之间加。页面小节（.page）不需要——
+         它们同时只有一个可见，给兄弟节点加 margin 会让非首个页面顶部多出 32px 空白 */
+      .page > .card + .card {
+        margin-top: 32px;
+      }
+
+      /* Toast */
+      #toast {
+        position: fixed;
+        left: 50%;
+        bottom: 36px;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--miuix-on-surface);
+        color: var(--miuix-surface);
+        padding: 12px 20px;
+        border-radius: 14px;
+        font-size: 14px;
+        font-weight: 600;
+        box-shadow: var(--miuix-shadow-lg);
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.35s var(--spring);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        z-index: 50;
+      }
+      #toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+      #toast .material-symbols-rounded {
+        font-size: 20px;
+      }
+      /* 极光主题下，--miuix-surface 为半透明，需用实心深色文字保证提示气泡对比度 */
+      [data-theme="aurora"] #toast {
+        background: var(--miuix-on-surface);
+        color: #12152c;
+      }
+      /* 迷你计时器在极光下用深色玻璃底，确保白色文字在任何渐变区域可读 */
+      [data-theme="aurora"] .mini-timer {
+        background: rgba(10, 12, 32, 0.55);
+      }
+
+      /* =========================== 关于页（全屏浮层） =========================== */
+      /* 自己带渐变背景铺满整屏（含状态栏区域），不依赖外层背景；
+         深浅色主题各一套，保证系统栏图标颜色能对上 */
+      .about {
+        position: fixed;
+        inset: 0;
+        z-index: 45; /* 盖住底部导航(20)与迷你计时器(40)，但低于 toast(50) */
+        display: flex;
+        flex-direction: column;
+        padding: calc(10px + var(--safe-top)) 20px
+          calc(24px + var(--safe-bottom));
+        overflow-y: auto;
+        overscroll-behavior: none;
+        color: #1b1633;
+        background: linear-gradient(
+          165deg,
+          #ffe3f1 0%,
+          #f0e7fd 42%,
+          #dcd7fa 100%
+        );
+        visibility: hidden;
+        pointer-events: none;
+        transform: translateX(100%);
+        transition:
+          transform var(--nav-dur) var(--nav-ease),
+          visibility 0s linear var(--nav-dur);
+        -webkit-tap-highlight-color: transparent;
+      }
+      [data-theme="dark"] .about,
+      [data-theme="aurora"] .about {
+        color: #ece9ff;
+        background: linear-gradient(
+          165deg,
+          #2d1f3d 0%,
+          #241f3e 42%,
+          #181533 100%
+        );
+      }
+      .about.show {
+        visibility: visible;
+        pointer-events: auto;
+        transform: translateX(0);
+        transition:
+          transform var(--nav-dur) var(--nav-ease),
+          visibility 0s;
+      }
+      /* 转场时底层应用：向左 25% 视差 + 变暗。
+         对应 Miuix NavTransitions.MiuixDefault（被覆盖层 translationX = -0.25·width·d，
+         遮罩 alpha = dimAmount(0.5)·d，d 由上面那条 500ms 曲线驱动）。
+         ⚠️ 不能给 #app 加 opacity/filter 来做衰减——会造 Backdrop Root 毁掉卡片毛玻璃，
+         所以“变暗”只靠叠加的 .about-dim 遮罩层。 */
+      #app {
+        transition: transform var(--nav-dur) var(--nav-ease);
+      }
+      #app.scene-out {
+        transform: translateX(-25%);
+      }
+      .about-dim {
+        position: fixed;
+        inset: 0;
+        z-index: 44; /* 在 #app 之上、.about(45) 之下 */
+        background: #000;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity var(--nav-dur) var(--nav-ease),
+          visibility 0s linear var(--nav-dur);
+      }
+      .about-dim.show {
+        opacity: 0.5;
+        visibility: visible;
+        transition:
+          opacity var(--nav-dur) var(--nav-ease),
+          visibility 0s;
+      }
+      /* 内容入场：只做位移与缩放，**不做 opacity** —— 卡片带 backdrop-filter，
+         一旦自身或祖先 opacity < 1 就会产生新的 Backdrop Root，玻璃会先失效再突跳回来 */
+      @keyframes aboutPop {
+        from {
+          transform: scale(0.62);
+        }
+        to {
+          transform: none;
+        }
+      }
+      @keyframes aboutUp {
+        from {
+          transform: translateY(18px);
+        }
+        to {
+          transform: none;
+        }
+      }
+      .about.show .about-logo {
+        animation: aboutPop 0.5s var(--spring) backwards;
+        animation-delay: 0.05s;
+      }
+      .about.show .about-name,
+      .about.show .about-ver {
+        animation: aboutUp 0.45s var(--spring) backwards;
+        animation-delay: 0.1s;
+      }
+      .about.show .about-card {
+        animation: aboutUp 0.5s var(--spring) backwards;
+        animation-delay: 0.16s;
+      }
+      .about.show .about-card + .about-card {
+        animation-delay: 0.22s;
+      }
+      .about-head {
+        display: flex;
+        align-items: center;
+        flex: none;
+      }
+      .about-back {
+        width: 44px;
+        height: 44px;
+        margin-left: -10px;
+        border: none;
+        border-radius: 14px;
+        background: transparent;
+        color: inherit;
+        display: grid;
+        place-items: center;
+        font-size: 24px;
+        cursor: pointer;
+        transition: transform 0.3s var(--spring);
+      }
+      .about-back:active {
+        transform: scale(0.9);
+      }
+      /* 图标 + 应用名 + 版本：在剩余空间里居中 */
+      .about-main {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 180px;
+        padding-bottom: 12px;
+      }
+      .about-logo {
+        width: 96px;
+        height: 96px;
+        border-radius: 28px;
+        display: grid;
+        place-items: center;
+        background: #3482ff;
+        box-shadow: 0 14px 34px rgba(52, 130, 255, 0.34);
+      }
+      .about-logo svg {
+        width: 58px;
+        height: 58px;
+        display: block;
+      }
+      .about-name {
+        margin-top: 22px;
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        text-align: center;
+        background: linear-gradient(100deg, #4a2fb8, #a24bd0 58%, #e0559a);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      [data-theme="dark"] .about-name,
+      [data-theme="aurora"] .about-name {
+        background: linear-gradient(100deg, #b9a6ff, #e0a6ff 58%, #ff9ecb);
+        -webkit-background-clip: text;
+        background-clip: text;
+      }
+      .about-ver {
+        margin-top: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        opacity: 0.5;
+        text-align: center;
+      }
+      .about-card {
+        flex: none;
+        margin-top: 16px;
+        border-radius: 20px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.72);
+        backdrop-filter: blur(20px) saturate(1.4);
+        -webkit-backdrop-filter: blur(20px) saturate(1.4);
+      }
+      [data-theme="dark"] .about-card,
+      [data-theme="aurora"] .about-card {
+        background: rgba(255, 255, 255, 0.09);
+      }
+      .about-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 18px 20px;
+        cursor: pointer;
+        transition: background-color 0.25s var(--ease);
+      }
+      .about-item:active {
+        background: rgba(0, 0, 0, 0.05);
+      }
+      [data-theme="dark"] .about-item:active,
+      [data-theme="aurora"] .about-item:active {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .about-item-label {
+        margin-right: auto;
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .about-item-value {
+        font-size: 14px;
+        font-weight: 600;
+        opacity: 0.55;
+      }
+      .about-item .material-symbols-rounded {
+        font-size: 22px;
+        opacity: 0.42;
+      }
+      /* 外链行：地址允许折行，避免窄屏被卡片 overflow:hidden 裁掉 */
+      .about-item[data-link] .about-item-value {
+        min-width: 0;
+        word-break: break-all;
+        text-align: right;
+      }
+      /* 许可详情弹窗 */
+      .about-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 46;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.42);
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 0.25s var(--ease),
+          visibility 0s linear 0.25s;
+      }
+      .about-modal.show {
+        opacity: 1;
+        visibility: visible;
+        transition:
+          opacity 0.25s var(--ease),
+          visibility 0s;
+      }
+      .about-modal-card {
+        width: 100%;
+        max-width: 430px;
+        max-height: 76vh;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        padding: 22px;
+        border-radius: 22px;
+        background: var(--miuix-surface-container);
+        box-shadow: var(--miuix-shadow-lg);
+        transform: scale(0.92);
+        transition: transform 0.3s var(--spring);
+      }
+      .about-modal.show .about-modal-card {
+        transform: scale(1);
+      }
+      .about-modal-title {
+        font-size: 17px;
+        font-weight: 800;
+      }
+      .about-modal-body {
+        flex: 1 1 auto;
+        overflow-y: auto;
+        font-size: 13px;
+        line-height: 1.75;
+        color: var(--miuix-on-surface-variant);
+        white-space: pre-wrap;
+      }
+
+      /* =========================== 移动端 / 多设备适配 =========================== */
+      :root {
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-left: env(safe-area-inset-left, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
+      }
+
+      /* 手机：底部导航栏（网格行布局 + 安全区 / 刘海） */
+      @media (max-width: 760px) {
+        #app {
+          grid-template-columns: 1fr;
+          grid-template-rows: 1fr auto;
+          height: 100dvh;
+        }
+        .rail {
+          grid-row: 2;
+          position: static;
+          flex-direction: row;
+          justify-content: space-around;
+          height: auto;
+          padding: 6px 0 calc(6px + var(--safe-bottom));
+          border-right: none;
+          border-top: 1px solid var(--miuix-divider);
+          z-index: 20;
+          background: color-mix(in srgb, var(--miuix-surface) 55%, transparent);
+          backdrop-filter: blur(22px) saturate(1.7);
+          -webkit-backdrop-filter: blur(22px) saturate(1.7);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+        }
+        .rail-item {
+          padding: 8px 0;
+          flex: 1;
+          max-width: 80px;
+          border-radius: 14px;
+        }
+        .rail-sep,
+        .rail-brand,
+        .rail-brand .material-symbols-rounded {
+          display: none;
+        }
+        .main {
+          grid-row: 1;
+          margin-bottom: 0;
+          min-height: 0;
+          overflow: hidden;
+        }
+        .topbar {
+          padding: calc(14px + var(--safe-top)) 18px 10px;
+        }
+        .content {
+          padding: 18px 16px 32px;
+        }
+        .stats-grid {
+          grid-template-columns: 1fr;
+        }
+        .btn-primary {
+          height: 56px;
+          padding: 0 26px;
+        }
+        .card {
+          padding: 20px;
+          border-radius: 18px;
+        }
+      }
+
+      /* 很小屏幕：更紧凑 */
+      @media (max-width: 360px) {
+        .topbar-title h1 {
+          font-size: 22px;
+        }
+        .timer-ring {
+          --ring: clamp(190px, 58vw, 260px);
+        }
+        .controls {
+          gap: 10px;
+        }
+        .segment button {
+          padding: 9px 8px;
+          font-size: 13px;
+        }
+        .stat-cell {
+          padding: 14px;
+        }
+        .stat-cell .val {
+          font-size: 24px;
+        }
+      }
+
+      /* 平板：内容列加宽，底部导航转侧边 */
+      @media (min-width: 761px) and (max-width: 1024px) {
+        #app {
+          grid-template-columns: 76px 1fr;
+        }
+        .main {
+          max-width: 860px;
+        }
+        .rail-item {
+          width: 60px;
+        }
+      }
+
+      /* 手机横屏：压缩顶部与内容，避免拥挤 */
+      @media (max-height: 500px) and (orientation: landscape) {
+        .topbar {
+          padding: 10px 18px 8px;
+        }
+        .topbar-title h1 {
+          font-size: 20px;
+        }
+        .content {
+          padding: 12px 16px 18px;
+        }
+        .timer-wrap {
+          padding: 18px 18px 20px;
+          gap: 16px;
+        }
+        .timer-ring {
+          --ring: min(210px, 46vh);
+        }
+        .controls {
+          gap: 10px;
+        }
+        .btn-primary {
+          height: 50px;
+          padding: 0 22px;
+          font-size: 16px;
+        }
+        .page > .card + .card {
+          margin-top: 22px;
+        }
+      }
+
+      /* 减少动态效果偏好（无障碍） */
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+          scroll-behavior: auto !important;
+        }
+        #loading-logo,
+        .timer-ring.running .dot {
+          animation: none !important;
+        }
+      }
+
+      /* =========================== 环境光晕 / 呼吸背景 =========================== */
+      .ring-ambient {
+        position: absolute;
+        inset: -14px;
+        border-radius: 50%;
+        pointer-events: none;
+        background: radial-gradient(
+          circle,
+          color-mix(in srgb, var(--miuix-primary) 26%, transparent) 0%,
+          transparent 70%
+        );
+        opacity: 0.55;
+        /* 原为 filter: blur(6px)。它是元素自身渲染的模糊（不是 backdrop），
+           但径向渐变本身已经足够柔和：实测去掉后最大像素差仅 2，
+           没有任何像素差值 >2。省掉后这个常驻无限动画不必每帧再合成一层滤镜。 */
+        animation: ambientPulse 4s var(--ease) infinite;
+        z-index: 0;
+      }
+      .timer-ring.running .ring-ambient {
+        opacity: 0.9;
+        animation-duration: 2.6s;
+      }
+      @keyframes ambientPulse {
+        0%,
+        100% {
+          transform: scale(0.92);
+          opacity: 0.5;
+        }
+        50% {
+          transform: scale(1.06);
+          opacity: 0.85;
+        }
+      }
+
+      /* 统计数值弹跳 */
+      .stat-cell .val {
+        display: inline-block;
+        transition: transform 0.35s var(--spring);
+      }
+      .stat-cell .val.bump {
+        animation: bump 0.5s var(--spring);
+      }
+      @keyframes bump {
+        0% {
+          transform: scale(1);
+        }
+        40% {
+          transform: scale(1.22);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      @keyframes barGrow {
+        from {
+          transform: scaleY(0);
+        }
+        to {
+          transform: scaleY(1);
+        }
+      }
+
+      /* 卡片入场：玻璃本体保持稳定（避免 backdrop-filter 闪烁），内容错落淡入 */
+      .page.active .card > *:not(.timer-ring) {
+        animation: cardIn 0.5s var(--spring) backwards;
+      }
+      .page.active .card > *:not(.timer-ring):nth-child(1) {
+        animation-delay: 0.02s;
+      }
+      .page.active .card > *:not(.timer-ring):nth-child(2) {
+        animation-delay: 0.06s;
+      }
+      .page.active .card > *:not(.timer-ring):nth-child(3) {
+        animation-delay: 0.1s;
+      }
+      @keyframes cardIn {
+        from {
+          opacity: 0;
+          transform: translateY(14px) scale(0.99);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      /* 同上：卡片内容块在毛玻璃场景下也保持 opacity: 1
+         （这些元素里可能有 .stat-cell / .todo-item / .stepper 等带 backdrop-filter 的后代） */
+      [data-bg-active="true"] .page.active .card > *:not(.timer-ring),
+      [data-theme="aurora"] .page.active .card > *:not(.timer-ring) {
+        opacity: 1 !important;
+      }
+
+      /* 涟漪（Miuix 触感反馈） */
+      .ripple-host {
+        position: relative;
+        overflow: hidden;
+      }
+      .ripple {
+        position: absolute;
+        border-radius: 50%;
+        transform: scale(0);
+        background: color-mix(in srgb, currentColor 22%, transparent);
+        pointer-events: none;
+        animation: ripple 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+      @keyframes ripple {
+        0% {
+          transform: scale(0);
+          opacity: 0.5;
+        }
+        60% {
+          opacity: 0.25;
+        }
+        100% {
+          transform: scale(3);
+          opacity: 0;
+        }
+      }
+
+      /* =========================== 悬浮迷你计时器 =========================== */
+      .mini-timer {
+        position: fixed;
+        z-index: 40;
+        right: 24px;
+        bottom: 24px;
+        display: none;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px 8px 8px;
+        border-radius: 40px;
+        background: color-mix(
+          in srgb,
+          var(--miuix-surface-container) 80%,
+          transparent
+        );
+        backdrop-filter: blur(20px) saturate(1.6);
+        -webkit-backdrop-filter: blur(20px) saturate(1.6);
+        border: 1px solid var(--miuix-divider);
+        box-shadow: var(--miuix-shadow-lg);
+        user-select: none;
+        cursor: grab;
+        touch-action: none;
+      }
+      .mini-timer.show {
+        display: flex;
+      }
+      .mini-timer:active {
+        cursor: grabbing;
+      }
+      .mini-timer svg {
+        width: 52px;
+        height: 52px;
+        flex: none;
+      }
+      .mini-track {
+        fill: none;
+        stroke: var(--miuix-surface-container-highest);
+        stroke-width: 6;
+      }
+      .mini-progress {
+        fill: none;
+        stroke: var(--miuix-primary);
+        stroke-width: 6;
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: center;
+        transition: stroke-dashoffset 0.3s linear;
+      }
+      .mini-time {
+        font-family: var(--font-num);
+        font-weight: 800;
+        font-size: 18px;
+        letter-spacing: -0.5px;
+        color: var(--miuix-on-surface);
+        font-variant-numeric: tabular-nums;
+      }
+      .mini-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        border: none;
+        background: var(--miuix-primary);
+        color: var(--miuix-on-primary);
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        transition: transform 0.3s var(--spring);
+      }
+      .mini-btn:active {
+        transform: scale(0.88);
+      }
+      .mini-btn .material-symbols-rounded {
+        font-size: 20px;
+      }
+      @media (max-width: 760px) {
+        .mini-timer {
+          right: 14px;
+          bottom: calc(84px + var(--safe-bottom));
+        }
+      }
+
+      /* 背景设置输入框 */
+      .bg-input {
+        flex: 1;
+        min-width: 0;
+        padding: 12px 14px;
+        border-radius: 14px;
+        border: 1px solid var(--miuix-divider);
+        background: var(--miuix-surface-container-high);
+        color: var(--miuix-on-surface);
+        font-family: inherit;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.3s var(--ease);
+      }
+      .bg-input:focus {
+        border-color: var(--miuix-primary);
+      }
+      .bg-hint {
+        font-size: 12px;
+        color: var(--miuix-on-surface-variant);
+        margin-top: 10px;
+        line-height: 1.5;
+      }
+
+      /* =========================== 待办清单 =========================== */
+      .todo-stats {
+        font-size: 13px;
+        color: var(--miuix-on-surface-variant);
+        margin: 14px 2px 6px;
+        font-weight: 600;
+      }
+      .todo-stats strong {
+        color: var(--miuix-on-surface);
+      }
+      .todo-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .todo-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: var(--miuix-surface);
+        border: 1px solid var(--miuix-divider);
+        transition:
+          background-color 0.3s var(--ease),
+          border-color 0.3s var(--ease),
+          transform 0.3s var(--spring);
+      }
+      .todo-item:hover {
+        transform: translateY(-1px);
+      }
+      .todo-check {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid var(--miuix-outline);
+        background: transparent;
+        cursor: pointer;
+        flex: none;
+        padding: 0;
+        transition:
+          background-color 0.25s var(--ease),
+          border-color 0.25s var(--ease),
+          transform 0.3s var(--spring);
+      }
+      .todo-item.done .todo-check {
+        background: var(--miuix-primary);
+        border-color: var(--miuix-primary);
+      }
+      .todo-check:active {
+        transform: scale(0.85);
+      }
+      .todo-text {
+        flex: 1;
+        min-width: 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--miuix-on-surface);
+        word-break: break-word;
+        transition:
+          color 0.3s var(--ease),
+          opacity 0.3s var(--ease);
+      }
+      .todo-item.done .todo-text {
+        color: var(--miuix-on-surface-variant);
+        opacity: 0.85;
+      }
+      .todo-del {
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
+        border: none;
+        background: transparent;
+        color: var(--miuix-on-surface-variant);
+        cursor: pointer;
+        display: grid;
+        place-items: center;
+        transition:
+          background-color 0.25s var(--ease),
+          color 0.25s var(--ease),
+          transform 0.3s var(--spring);
+      }
+      .todo-del .material-symbols-rounded {
+        font-size: 20px;
+      }
+      .todo-del:hover {
+        background: var(--miuix-danger-soft);
+        color: var(--miuix-error);
+      }
+      .todo-del:active {
+        transform: scale(0.85);
+      }
+      .todo-empty {
+        text-align: center;
+        color: var(--miuix-on-surface-variant);
+        font-size: 14px;
+        padding: 24px 0 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 极光渐变背景层（仅 "极光" 主题显示） -->
+    <div class="aurora-bg" aria-hidden="true"><i></i></div>
+    <!-- 用户/动漫背景图层 -->
+    <div class="bg-image" id="bgImage" aria-hidden="true"></div>
+    <!-- 主题切换渐变过渡层 -->
+    <div class="theme-flash" aria-hidden="true"></div>
+
+    <!-- ============ 加载页 ============ -->
+    <div id="loading">
+      <div id="loading-card">
+        <div id="loading-logo">
+          <span class="material-symbols-rounded">timer</span>
+        </div>
+        <div id="loading-title">番茄钟</div>
+        <div class="loading-row">
+          <div class="loading-bar">
+            <div class="loading-bar-fill" id="loading-bar-fill-app"></div>
+          </div>
+          <div class="loading-status">
+            <span>App</span><span id="loading-percent-app">0%</span>
+          </div>
+        </div>
+        <div class="loading-row">
+          <div class="loading-bar">
+            <div class="loading-bar-fill" id="loading-bar-fill-font"></div>
+          </div>
+          <div class="loading-status">
+            <span>Font</span><span id="loading-percent-font">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 应用 ============ -->
+    <div id="app">
+      <!-- 导航栏 -->
+      <nav class="rail">
+        <button class="rail-item active" data-page="timer">
+          <span class="material-symbols-rounded">timer</span>
+          <span>计时</span>
+        </button>
+        <button class="rail-item" data-page="stats">
+          <span class="material-symbols-rounded">monitoring</span>
+          <span>统计</span>
+        </button>
+        <button class="rail-item" data-page="todos">
+          <span class="material-symbols-rounded">checklist</span>
+          <span>待办</span>
+        </button>
+        <button class="rail-item" data-page="settings">
+          <span class="material-symbols-rounded">settings</span>
+          <span>设置</span>
+        </button>
+        <div class="rail-sep"></div>
+        <div class="rail-brand">
+          <span class="material-symbols-rounded">eco</span>
+        </div>
+      </nav>
+
+      <!-- 主内容 -->
+      <main class="main">
+        <header class="topbar">
+          <div class="topbar-title">
+            <h1 id="pageTitle">番茄钟</h1>
+            <p id="pageSubtitle">专注每一刻</p>
+          </div>
+          <button class="icon-btn" id="themeToggle" title="切换主题">
+            <span class="material-symbols-rounded" id="themeIcon"
+              >dark_mode</span
+            >
+          </button>
+        </header>
+
+        <div class="content stack">
+          <!-- ====== 计时页 ====== -->
+          <section class="page active" id="page-timer">
+            <div class="card">
+              <div class="card-title" style="margin-bottom: 20px">
+                <strong>模式</strong> 选择
+              </div>
+              <div class="segment" id="modeSegment">
+                <button data-mode="focus" class="active">专注</button>
+                <button data-mode="short">短休息</button>
+                <button data-mode="long">长休息</button>
+              </div>
+            </div>
+
+            <div class="card timer-wrap">
+              <div class="timer-ring" id="timerRing">
+                <div class="ring-ambient" id="ringAmbient"></div>
+                <svg viewBox="0 0 300 300" width="300" height="300">
+                  <circle class="ring-track" cx="150" cy="150" r="130"></circle>
+                  <circle
+                    class="ring-progress"
+                    id="ringProgress"
+                    cx="150"
+                    cy="150"
+                    r="130"
+                    stroke-dasharray="816.8"
+                    stroke-dashoffset="816.8"
+                  ></circle>
+                </svg>
+                <div class="timer-center">
+                  <span class="dot"></span>
+                  <div class="timer-time" id="timerTime">25:00</div>
+                  <div class="timer-mode-label">
+                    <span class="material-symbols-rounded" id="modeIcon"
+                      >psychology</span
+                    >
+                    <span id="modeLabel">专注中</span>
+                  </div>
+                </div>
+              </div>
+              <div class="controls">
+                <button class="btn btn-ghost" id="resetBtn" title="重置">
+                  <span class="material-symbols-rounded">replay</span>
+                </button>
+                <button class="btn btn-primary" id="startBtn">
+                  <span class="material-symbols-rounded" id="startIcon"
+                    >play_arrow</span
+                  >
+                  <span id="startText">开始</span>
+                </button>
+                <button class="btn btn-ghost" id="skipBtn" title="跳过">
+                  <span class="material-symbols-rounded">skip_next</span>
+                </button>
+              </div>
+              <div class="session-dots" id="sessionDots"></div>
+            </div>
+          </section>
+
+          <!-- ====== 统计页 ====== -->
+          <section class="page" id="page-stats">
+            <div class="card">
+              <div class="card-title" style="margin-bottom: 20px">
+                <strong>今日</strong> 专注
+              </div>
+              <div class="stats-grid">
+                <div class="stat-cell">
+                  <span class="val" id="statSessions">0</span>
+                  <span class="lab">完成番茄</span>
+                </div>
+                <div class="stat-cell">
+                  <span class="val" id="statFocus">0</span>
+                  <span class="lab">专注分钟</span>
+                </div>
+                <div class="stat-cell">
+                  <span class="val" id="statBest">0</span>
+                  <span class="lab">最长连续</span>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-title" style="margin-bottom: 20px">
+                <strong>累计</strong> 专注
+              </div>
+              <div class="stats-grid">
+                <div class="stat-cell">
+                  <span class="val" id="statTotalSessions">0</span>
+                  <span class="lab">累计番茄</span>
+                </div>
+                <div class="stat-cell">
+                  <span class="val" id="statTotalHours">0</span>
+                  <span class="lab">累计小时</span>
+                </div>
+                <div class="stat-cell">
+                  <span class="val" id="statActiveDays">0</span>
+                  <span class="lab">专注天数</span>
+                </div>
+              </div>
+              <button
+                class="btn btn-ghost btn-export"
+                id="exportBtn"
+                style="
+                  margin-top: 18px;
+                  width: auto;
+                  height: 44px;
+                  padding: 0 18px;
+                  font-size: 14px;
+                "
+              >
+                <span class="material-symbols-rounded" style="font-size: 20px"
+                  >download</span
+                >
+                导出数据
+              </button>
+            </div>
+            <div class="card">
+              <div class="card-title" style="margin-bottom: 20px">
+                <strong>本周</strong> 分布
+              </div>
+              <div
+                id="weekChart"
+                style="
+                  display: flex;
+                  align-items: flex-end;
+                  gap: 8px;
+                  height: 120px;
+                "
+              ></div>
+            </div>
+          </section>
+
+          <!-- ====== 设置页 ====== -->
+          <section class="page" id="page-settings">
+            <div class="card">
+              <div class="card-title" style="margin-bottom: 12px">
+                <strong>时长</strong> 设置
+              </div>
+              <div
+                class="setting-row"
+                data-step="focusMinutes"
+                data-min="1"
+                data-max="90"
+                data-unit="分钟"
+              >
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded">psychology</span>
+                  </div>
+                  <div>
+                    <div class="setting-name">专注时长</div>
+                    <div class="setting-sub">每次深度工作</div>
+                  </div>
+                </div>
+                <div class="stepper">
+                  <button data-step="-1">−</button
+                  ><span class="num" data-display="focusMinutes">25</span
+                  ><button data-step="1">+</button>
+                </div>
+              </div>
+              <div
+                class="setting-row"
+                data-step="shortMinutes"
+                data-min="1"
+                data-max="30"
+                data-unit="分钟"
+              >
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded">coffee</span>
+                  </div>
+                  <div>
+                    <div class="setting-name">短休息</div>
+                    <div class="setting-sub">小憩一下</div>
+                  </div>
+                </div>
+                <div class="stepper">
+                  <button data-step="-1">−</button
+                  ><span class="num" data-display="shortMinutes">5</span
+                  ><button data-step="1">+</button>
+                </div>
+              </div>
+              <div
+                class="setting-row"
+                data-step="longMinutes"
+                data-min="1"
+                data-max="60"
+                data-unit="分钟"
+              >
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded"
+                      >self_improvement</span
+                    >
+                  </div>
+                  <div>
+                    <div class="setting-name">长休息</div>
+                    <div class="setting-sub">深度恢复</div>
+                  </div>
+                </div>
+                <div class="stepper">
+                  <button data-step="-1">−</button
+                  ><span class="num" data-display="longMinutes">15</span
+                  ><button data-step="1">+</button>
+                </div>
+              </div>
+              <div
+                class="setting-row"
+                data-step="sessionsBeforeLong"
+                data-min="2"
+                data-max="8"
+                data-unit="轮"
+              >
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded">repeat</span>
+                  </div>
+                  <div>
+                    <div class="setting-name">长休息间隔</div>
+                    <div class="setting-sub">每几轮进入长休息</div>
+                  </div>
+                </div>
+                <div class="stepper">
+                  <button data-step="-1">−</button
+                  ><span class="num" data-display="sessionsBeforeLong">4</span
+                  ><button data-step="1">+</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title" style="margin-bottom: 12px">
+                <strong>行为</strong> 设置
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded">play_circle</span>
+                  </div>
+                  <div>
+                    <div class="setting-name">自动开始下一轮</div>
+                    <div class="setting-sub">结束后自动继续</div>
+                  </div>
+                </div>
+                <button class="switch" id="autoStartSwitch"></button>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded">notifications</span>
+                  </div>
+                  <div>
+                    <div class="setting-name">提示音</div>
+                    <div class="setting-sub">结束时播放提醒</div>
+                  </div>
+                </div>
+                <button class="switch on" id="soundSwitch"></button>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded"
+                      >notification_add</span
+                    >
+                  </div>
+                  <div>
+                    <div class="setting-name">桌面通知</div>
+                    <div class="setting-sub">结束时系统提醒</div>
+                  </div>
+                </div>
+                <button class="switch" id="notifySwitch"></button>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded"
+                      >picture_in_picture</span
+                    >
+                  </div>
+                  <div>
+                    <div class="setting-name">悬浮迷你计时器</div>
+                    <div class="setting-sub">可拖动的迷你圆环</div>
+                  </div>
+                </div>
+                <button class="switch" id="miniTimerSwitch"></button>
+              </div>
+              <div class="setting-row">
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded">swipe_vertical</span>
+                  </div>
+                  <div>
+                    <div class="setting-name">超出回弹</div>
+                    <div class="setting-sub">拖到顶部/底部时的拉伸动画</div>
+                  </div>
+                </div>
+                <button class="switch" id="overscrollSwitch"></button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-title" style="margin-bottom: 18px">
+                <strong>主题</strong> 风格
+              </div>
+              <div class="setting-row" style="border: none; padding-top: 0">
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded">palette</span>
+                  </div>
+                  <div>
+                    <div class="setting-name">强调色</div>
+                    <div class="setting-sub">选择你的主色调</div>
+                  </div>
+                </div>
+              </div>
+              <div class="color-row" id="colorRow"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-title" style="margin-bottom: 18px">
+                <strong>提醒音</strong> 声音
+              </div>
+              <div class="setting-row" style="border: none; padding-top: 0">
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded">play_circle</span>
+                  </div>
+                  <div>
+                    <div class="setting-name">开始提醒音</div>
+                    <div class="setting-sub" id="startToneHint">
+                      点击试听，或上传自定义
+                    </div>
+                  </div>
+                </div>
+                <button class="upload-btn" id="startToneUpload">上传</button>
+              </div>
+              <div class="tone-row" id="startToneRow"></div>
+
+              <div class="setting-row" style="border: none">
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded"
+                      >notifications_active</span
+                    >
+                  </div>
+                  <div>
+                    <div class="setting-name">结束提醒音</div>
+                    <div class="setting-sub" id="endToneHint">
+                      点击试听，或上传自定义
+                    </div>
+                  </div>
+                </div>
+                <button class="upload-btn" id="endToneUpload">上传</button>
+              </div>
+              <div class="tone-row" id="endToneRow"></div>
+            </div>
+
+            <div class="card">
+              <div class="card-title" style="margin-bottom: 16px">
+                <strong>背景</strong> 图片
+              </div>
+              <div class="segment" id="bgSegment">
+                <button data-bg="gradient" class="active">渐变</button>
+                <button data-bg="custom">自定义</button>
+                <button data-bg="api">API</button>
+              </div>
+              <div id="bgCustomWrap" style="display: none; margin-top: 16px">
+                <div style="display: flex; gap: 10px">
+                  <input
+                    id="bgUrlInput"
+                    class="bg-input"
+                    type="url"
+                    placeholder="粘贴图片链接 https://..."
+                  />
+                  <button
+                    class="btn btn-ghost"
+                    id="bgApplyBtn"
+                    style="
+                      width: auto;
+                      height: 46px;
+                      padding: 0 18px;
+                      font-size: 14px;
+                    "
+                  >
+                    <span
+                      class="material-symbols-rounded"
+                      style="font-size: 20px"
+                      >check</span
+                    >
+                    应用
+                  </button>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px">
+                  <button
+                    class="btn btn-ghost"
+                    id="bgUploadBtn"
+                    style="
+                      width: auto;
+                      height: 46px;
+                      padding: 0 18px;
+                      font-size: 14px;
+                    "
+                  >
+                    <span
+                      class="material-symbols-rounded"
+                      style="font-size: 20px"
+                      >upload</span
+                    >
+                    上传本地图片
+                  </button>
+                  <input
+                    id="bgFileInput"
+                    type="file"
+                    accept="image/*"
+                    style="display: none"
+                  />
+                </div>
+                <div class="bg-hint">
+                  可粘贴图片链接，或从本地选择图片作为背景。
+                </div>
+              </div>
+              <div id="bgApiWrap" style="display: none; margin-top: 16px">
+                <div style="display: flex; gap: 10px">
+                  <select
+                    id="bgApiSelect"
+                    class="bg-input"
+                    style="flex: 2"
+                  ></select>
+                  <button
+                    class="btn btn-ghost"
+                    id="bgShuffleBtn"
+                    style="
+                      width: auto;
+                      height: 46px;
+                      padding: 0 18px;
+                      font-size: 14px;
+                    "
+                  >
+                    <span
+                      class="material-symbols-rounded"
+                      style="font-size: 20px"
+                      >shuffle</span
+                    >
+                    换一张
+                  </button>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 10px">
+                  <input
+                    id="bgApiInput"
+                    class="bg-input"
+                    type="url"
+                    placeholder="粘贴自定义 API 链接 https://..."
+                  />
+                  <button
+                    class="btn btn-ghost"
+                    id="bgApiAddBtn"
+                    style="
+                      width: auto;
+                      height: 46px;
+                      padding: 0 18px;
+                      font-size: 14px;
+                    "
+                  >
+                    <span
+                      class="material-symbols-rounded"
+                      style="font-size: 20px"
+                      >add</span
+                    >
+                    添加
+                  </button>
+                </div>
+                <div id="bgApiCustomList" class="bg-hint"></div>
+                <div class="bg-hint">
+                  可选择 API 来源；开启后每隔 5 分钟自动换图。
+                </div>
+              </div>
+            </div>
+
+            <div class="card" id="aboutEntry" style="cursor: pointer">
+              <div class="setting-row" style="border: none; padding: 0">
+                <div class="setting-info">
+                  <div class="setting-ico">
+                    <span class="material-symbols-rounded">info</span>
+                  </div>
+                  <div>
+                    <div class="setting-name">关于</div>
+                    <div class="setting-sub">
+                      版本 <span id="aboutEntryVer">v1.0.0</span>
+                    </div>
+                  </div>
+                </div>
+                <span class="material-symbols-rounded" style="opacity: 0.4"
+                  >chevron_right</span
+                >
+              </div>
+            </div>
+          </section>
+
+          <!-- ====== 待办页 ====== -->
+          <section class="page" id="page-todos">
+            <div class="card">
+              <div class="card-title" style="margin-bottom: 16px">
+                <strong>待办</strong> 清单
+              </div>
+              <div style="display: flex; gap: 10px">
+                <input
+                  id="todoInput"
+                  class="bg-input"
+                  type="text"
+                  placeholder="添加一个待办，回车确认..."
+                />
+                <button
+                  class="btn btn-primary"
+                  id="todoAddBtn"
+                  style="height: 46px; padding: 0 18px; font-size: 14px"
+                >
+                  <span class="material-symbols-rounded" style="font-size: 20px"
+                    >add</span
+                  >
+                  添加
+                </button>
+              </div>
+              <div class="todo-stats" id="todoStats"></div>
+              <div id="todoList" class="todo-list"></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- ============ 关于页（全屏浮层） ============ -->
+    <div class="about-dim" id="aboutDim" aria-hidden="true"></div>
+    <div class="about" id="aboutPage" aria-hidden="true">
+      <div class="about-head">
+        <button class="about-back" id="aboutBack" title="返回">
+          <span class="material-symbols-rounded">arrow_back</span>
+        </button>
+      </div>
+
+      <div class="about-main">
+        <div class="about-logo">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              fill="#fff"
+              d="M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2ZM16.2,16.2L11,13.7V7h1.5v5.6l4.5,2.7Z"
+            />
+          </svg>
+        </div>
+        <div class="about-name">番茄钟</div>
+        <div class="about-ver" id="aboutVer">v1.0.0</div>
+      </div>
+
+      <div class="about-card">
+        <div class="about-item">
+          <div class="about-item-label">应用版本</div>
+          <div class="about-item-value" id="aboutVerRow">v1.0.0</div>
+        </div>
+        <div class="about-item" data-about="miuix">
+          <div class="about-item-label">设计参考</div>
+          <div class="about-item-value">MiuiX</div>
+          <span class="material-symbols-rounded">chevron_right</span>
+        </div>
+        <div class="about-item" data-link="https://github.com/Simlalsy">
+          <div class="about-item-label">我的 GitHub</div>
+          <div class="about-item-value">@Simlalsy</div>
+          <span class="material-symbols-rounded">open_in_new</span>
+        </div>
+      </div>
+
+      <!-- 开源组件：整行可点，点击跳转到对应仓库 -->
+      <div class="about-card">
+        <div
+          class="about-item"
+          data-link="https://github.com/compose-miuix-ui/miuix"
+        >
+          <div class="about-item-label">MiuiX for Compose</div>
+          <div class="about-item-value">compose-miuix-ui/miuix</div>
+          <span class="material-symbols-rounded">open_in_new</span>
+        </div>
+        <div
+          class="about-item"
+          data-link="https://github.com/google/material-design-icons"
+        >
+          <div class="about-item-label">Material Symbols</div>
+          <div class="about-item-value">google/material-design-icons</div>
+          <span class="material-symbols-rounded">open_in_new</span>
+        </div>
+        <div class="about-item" data-link="https://github.com/rsms/inter">
+          <div class="about-item-label">Inter</div>
+          <div class="about-item-value">rsms/inter</div>
+          <span class="material-symbols-rounded">open_in_new</span>
+        </div>
+        <div
+          class="about-item"
+          data-link="https://github.com/androidx/androidx"
+        >
+          <div class="about-item-label">Jetpack Compose</div>
+          <div class="about-item-value">androidx/androidx</div>
+          <span class="material-symbols-rounded">open_in_new</span>
+        </div>
+        <div class="about-item" data-link="https://github.com/JetBrains/kotlin">
+          <div class="about-item-label">Kotlin</div>
+          <div class="about-item-value">JetBrains/kotlin</div>
+          <span class="material-symbols-rounded">open_in_new</span>
+        </div>
+        <div class="about-item" data-link="https://github.com/gradle/gradle">
+          <div class="about-item-label">Gradle</div>
+          <div class="about-item-value">gradle/gradle</div>
+          <span class="material-symbols-rounded">open_in_new</span>
+        </div>
+      </div>
+
+      <div class="about-card">
+        <div class="about-item" data-about="license">
+          <div class="about-item-label">开源许可</div>
+          <div class="about-item-value">Apache-2.0</div>
+          <span class="material-symbols-rounded">chevron_right</span>
+        </div>
+        <div class="about-item" data-about="third">
+          <div class="about-item-label">第三方许可</div>
+          <span class="material-symbols-rounded">chevron_right</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="about-modal" id="aboutModal">
+      <div class="about-modal-card">
+        <div class="about-modal-title" id="aboutModalTitle"></div>
+        <div class="about-modal-body" id="aboutModalBody"></div>
+        <button
+          class="btn btn-primary"
+          id="aboutModalClose"
+          style="height: 46px"
+        >
+          关闭
+        </button>
+      </div>
+    </div>
+
+    <div id="toast">
+      <span class="material-symbols-rounded" id="toastIcon">check</span
+      ><span id="toastMsg"></span>
+    </div>
+
+    <!-- 悬浮迷你计时器 -->
+    <div class="mini-timer" id="miniTimer" aria-hidden="true">
+      <svg viewBox="0 0 100 100" width="52" height="52">
+        <circle class="mini-track" cx="50" cy="50" r="42"></circle>
+        <circle
+          class="mini-progress"
+          id="miniProgress"
+          cx="50"
+          cy="50"
+          r="42"
+        ></circle>
+      </svg>
+      <div class="mini-time" id="miniTime">25:00</div>
+      <button class="mini-btn" id="miniBtn" title="开始/暂停">
+        <span class="material-symbols-rounded" id="miniIcon">play_arrow</span>
+      </button>
+    </div>
+
+    <script>
+      /* =========================== 工具 & 状态 =========================== */
+      const $ = (s, r = document) => r.querySelector(s);
+      const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+      const KEY_COLORS = [
+        { name: "蓝", hex: "#3482FF" },
+        { name: "绿", hex: "#36D167" },
+        { name: "紫", hex: "#7C4DFF" },
+        { name: "黄", hex: "#FFB21D" },
+        { name: "橙", hex: "#FF5722" },
+        { name: "粉", hex: "#E91E63" },
+        { name: "青", hex: "#00BCD4" },
+      ];
+
+      const DEFAULTS = {
+        focusMinutes: 25,
+        shortMinutes: 5,
+        longMinutes: 15,
+        sessionsBeforeLong: 4,
+        autoStart: false,
+        sound: true,
+        notify: false,
+        miniTimer: false,
+        // 拖到滚动边界时的拉伸回弹动画（MIUI 手感），可在设置里关掉
+        overscroll: true,
+        bgMode: "gradient",
+        bgUrl: "",
+        bgApiLast: "",
+        bgApis: [],
+        bgApi: "random",
+        accent: "#3482FF",
+        theme: "system",
+        // 提示音音色（id 见 TONES）；startTone = 开始提醒，endTone = 结束提醒
+        startTone: "chime",
+        endTone: "chime",
+        // 自定义提示音的文件名（App 里由原生上传后回传）；ToneFile 只在网页版存 dataURL
+        startToneName: "",
+        endToneName: "",
+        startToneFile: "",
+        endToneFile: "",
+      };
+
+      let settings = loadSettings();
+      let mode = "focus";
+      let remaining = settings.focusMinutes * 60;
+      let total = settings.focusMinutes * 60;
+      let running = false;
+      let timerId = null;
+      let endAt = 0; // 本轮计时结束的绝对时间戳（Date.now() 基准）
+      let completedSessions = loadCycle();
+      let dayStats = loadDayStats();
+      let dayKey = todayKey();
+
+      /* =========================== 原生桥（安卓 WebView） ===========================
+         WebView 里 window.MiuixBridge 由原生注入。锁屏之后系统/Chromium 会把
+         JS 定时器节流甚至冻结，所以「锁屏也能正常计时 + 常驻通知栏」必须由原生
+         前台服务兜底：这里只负责把计时状态同步过去，其余全部交给 PomodoroService。
+         网页环境下 MiuixBridge 不存在，下面的调用自动降级为无操作。 */
+      const IN_APP = !!window.MiuixBridge;
+      function nativeTimer(state) {
+        const b = window.MiuixBridge;
+        if (!b || typeof b.timerState !== "function") return;
+        try {
+          b.timerState(
+            state, // "running" | "paused" | "idle"
+            MODES[mode].label,
+            Math.max(0, Math.round(remaining)),
+            Math.max(0, Math.round(total)),
+            !!settings.sound,
+            !!settings.notify,
+            (
+              getComputedStyle(document.documentElement).getPropertyValue(
+                "--miuix-primary",
+              ) || ""
+            ).trim(),
+            // 结束提示音：锁屏时由原生服务负责响，所以要把音色传过去
+            settings.endTone || "chime",
+          );
+        } catch {}
+      }
+      /* 把当前状态推给原生（自定义设置变化时也用它刷新一下通知栏） */
+      function syncNativeTimer() {
+        nativeTimer(
+          running
+            ? "running"
+            : remaining > 0 && remaining < total
+              ? "paused"
+              : "idle",
+        );
+      }
+
+      /* =========================== 存取 =========================== */
+      function loadSettings() {
+        try {
+          const s = JSON.parse(localStorage.getItem("pomodoro.miuix.settings"));
+          return { ...DEFAULTS, ...(s || {}) };
+        } catch {
+          return { ...DEFAULTS };
+        }
+      }
+      function saveSettings() {
+        try {
+          localStorage.setItem(
+            "pomodoro.miuix.settings",
+            JSON.stringify(settings),
+          );
+          return true;
+        } catch {
+          // 本地背景图（base64）可能超出 localStorage 配额
+          toast("保存失败：本地存储空间不足", "error");
+          return false;
+        }
+      }
+
+      function todayKey() {
+        const d = new Date();
+        return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+      }
+      function loadDayStats() {
+        try {
+          const all = JSON.parse(localStorage.getItem("pomodoro.miuix.stats"));
+          const day = all && all[todayKey()] ? all[todayKey()] : null;
+          // 与默认值合并，避免旧数据缺字段时统计出现 NaN
+          return { sessions: 0, focusMin: 0, best: 0, ...(day || {}) };
+        } catch {
+          return { sessions: 0, focusMin: 0, best: 0 };
+        }
+      }
+      function saveDayStats() {
+        let all = {};
+        try {
+          all = JSON.parse(localStorage.getItem("pomodoro.miuix.stats")) || {};
+        } catch {}
+        all[todayKey()] = dayStats;
+        try {
+          localStorage.setItem("pomodoro.miuix.stats", JSON.stringify(all));
+        } catch {}
+      }
+
+      /* 当前「长休息周期」的进度：持久化，避免刷新后圆点与长休息节奏归零 */
+      function loadCycle() {
+        const v = parseInt(
+          localStorage.getItem("pomodoro.miuix.cycle") || "0",
+          10,
+        );
+        return Number.isFinite(v) && v > 0 ? v : 0;
+      }
+      function saveCycle() {
+        try {
+          localStorage.setItem(
+            "pomodoro.miuix.cycle",
+            String(completedSessions),
+          );
+        } catch {}
+      }
+      /* 页面长时间开着跨过午夜时，把统计切换到新的一天（否则昨天的数据会被记到今天） */
+      function ensureToday() {
+        const k = todayKey();
+        if (k === dayKey) return;
+        dayKey = k;
+        dayStats = { sessions: 0, focusMin: 0, best: 0 };
+        completedSessions = 0;
+        saveCycle();
+        updateDots();
+      }
+
+      /* =========================== 主题 =========================== */
+      function applyTheme() {
+        const root = document.documentElement;
+        let mode = settings.theme;
+        if (mode === "system") {
+          const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+          root.setAttribute("data-theme", dark ? "dark" : "light");
+        } else {
+          root.setAttribute("data-theme", mode);
+        }
+        const isDark = ["dark", "aurora"].includes(
+          root.getAttribute("data-theme"),
+        );
+        $("#themeIcon").textContent = isDark ? "light_mode" : "dark_mode";
+        // 强调色派生变量（--miuix-soft / --miuix-primary-container）写在 :root 的内联样式里，
+        // 优先级高于 [data-theme] 中的 CSS 默认值，所以换主题后必须重算一次，
+        // 否则透明度会一直停留在启动时那个主题的取值（例如深色切浅色仍是 0.22）。
+        applyAccent();
+      }
+
+      function cycleTheme() {
+        const order = ["system", "light", "dark", "aurora"];
+        const cur = settings.theme;
+        settings.theme = order[(order.indexOf(cur) + 1) % order.length];
+        saveSettings();
+        applyTheme();
+        flashTheme();
+        const names = {
+          system: "跟随系统",
+          light: "浅色",
+          dark: "深色",
+          aurora: "极光",
+        };
+        toast("主题：" + names[settings.theme], "palette");
+      }
+
+      function flashTheme() {
+        const el = document.querySelector(".theme-flash");
+        if (!el) return;
+        el.classList.remove("run");
+        void el.offsetWidth; // 强制重排以重启动画
+        el.classList.add("run");
+      }
+
+      matchMedia("(prefers-color-scheme: dark)").addEventListener(
+        "change",
+        () => {
+          if (settings.theme === "system") applyTheme();
+        },
+      );
+
+      function applyAccent() {
+        const root = document.documentElement;
+        const c = settings.accent;
+        root.style.setProperty("--miuix-primary", c);
+        root.style.setProperty("--miuix-focus", c);
+        // 半透明容器
+        root.style.setProperty("--miuix-soft", hexToRgba(c, 0.14));
+        const lightDark = root.getAttribute("data-theme");
+        if (lightDark === "dark" || lightDark === "aurora") {
+          root.style.setProperty("--miuix-soft", hexToRgba(c, 0.22));
+        }
+        // 主容器色（稍亮/稍暗的相邻色）
+        root.style.setProperty("--miuix-primary-container", shade(c, 18));
+        // 强调色变化后，进度环 / 呼吸点 / 迷你圆环使用的是「内联」颜色，需要重新同步
+        updateModeUI();
+      }
+
+      function hexToRgba(hex, a) {
+        const r = parseInt(hex.slice(1, 3), 16),
+          g = parseInt(hex.slice(3, 5), 16),
+          b = parseInt(hex.slice(5, 7), 16);
+        return `rgba(${r},${g},${b},${a})`;
+      }
+      function shade(hex, pct) {
+        const r = parseInt(hex.slice(1, 3), 16),
+          g = parseInt(hex.slice(3, 5), 16),
+          b = parseInt(hex.slice(5, 7), 16);
+        const t = pct < 0 ? 0 : 255;
+        const p = Math.abs(pct) / 100;
+        const mix = (v) => Math.round((t - v) * p + v);
+        return `#${[mix(r), mix(g), mix(b)].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+      }
+
+      /* =========================== Toast =========================== */
+      let toastTimer = null;
+      function toast(msg, icon = "check") {
+        $("#toastMsg").textContent = msg;
+        $("#toastIcon").textContent = icon;
+        const el = $("#toast");
+        el.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove("show"), 2400);
+      }
+
+      /* =========================== 计时器逻辑 =========================== */
+      const MODES = {
+        focus: {
+          label: "专注",
+          icon: "psychology",
+          color: "--miuix-focus",
+          minutesKey: "focusMinutes",
+          next: "short",
+        },
+        short: {
+          label: "短休息",
+          icon: "coffee",
+          color: "--miuix-short",
+          minutesKey: "shortMinutes",
+          next: "focus",
+        },
+        long: {
+          label: "长休息",
+          icon: "self_improvement",
+          color: "--miuix-long",
+          minutesKey: "longMinutes",
+          next: "focus",
+        },
+      };
+
+      function setMode(m, { keepRemaining = false } = {}) {
+        // 运行中切换模式时先停止计时，避免「时长被重置但仍在倒计时」的状态错乱
+        if (running && !keepRemaining) pauseTimer();
+        mode = m;
+        const cfg = MODES[m];
+        if (!keepRemaining) {
+          total = settings[cfg.minutesKey] * 60;
+          remaining = total;
+        }
+        updateRing();
+        updateTime();
+        updateModeUI();
+        // 未在计时时同步一下通知栏的标题/时长/颜色
+        if (!running) nativeTimer("idle");
+      }
+
+      function updateModeUI() {
+        const cfg = MODES[mode];
+        const accentVar = cfg.color;
+        const c = getComputedStyle(document.documentElement)
+          .getPropertyValue(accentVar)
+          .trim();
+        $("#ringProgress").style.stroke = c;
+        // 迷你计时器圆环跟随当前模式颜色
+        $("#miniProgress").style.stroke = c;
+        $("#modeLabel").textContent = cfg.label;
+        $("#modeIcon").textContent = cfg.icon;
+        // 呼吸点颜色
+        $(".timer-center .dot").style.background = c;
+
+        $$("#modeSegment button").forEach((b) =>
+          b.classList.toggle("active", b.dataset.mode === mode),
+        );
+      }
+
+      function updateTime() {
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        const str = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+        $("#timerTime").textContent = str;
+        document.title = `${str} · ${MODES[mode].label} · 番茄钟`;
+        syncMini();
+      }
+
+      function updateRing() {
+        const r = 130;
+        const circumference = 2 * Math.PI * r;
+        const frac = total > 0 ? remaining / total : 0;
+        $("#ringProgress").style.strokeDasharray = circumference;
+        $("#ringProgress").style.strokeDashoffset = circumference * (1 - frac);
+      }
+
+      /* 倒计时以「绝对结束时间」为准，不再每秒自减：
+         锁屏/切后台时定时器可能被节流，回到前台按真实时间一算就自动对齐，
+         不会出现「少了十几秒」的漂移。 */
+      function tick() {
+        if (!running) return;
+        remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+        updateTime();
+        updateRing();
+        if (remaining <= 0) {
+          handleComplete();
+        }
+      }
+
+      function popIcon() {
+        const el = $("#startIcon");
+        el.classList.remove("pop");
+        void el.offsetWidth; // 强制重排以重启动画
+        el.classList.add("pop");
+      }
+
+      function startTimer() {
+        if (running) return;
+        running = true;
+        endAt = Date.now() + remaining * 1000;
+        $("#timerRing").classList.add("running");
+        $("#startText").textContent = "暂停";
+        $("#startIcon").textContent = "pause";
+        $("#startBtn").classList.add("running");
+        popIcon();
+        syncMini();
+        if (settings.sound) playStart();
+        timerId = setInterval(tick, 1000);
+        nativeTimer("running");
+      }
+
+      function pauseTimer() {
+        if (!running) return;
+        running = false;
+        clearInterval(timerId);
+        timerId = null;
+        // 按绝对时间对齐，避免暂停那一瞬间少算/多算一秒
+        remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+        $("#timerRing").classList.remove("running");
+        $("#startText").textContent = "继续";
+        $("#startIcon").textContent = "play_arrow";
+        $("#startBtn").classList.remove("running");
+        popIcon();
+        syncMini();
+        updateTime();
+        updateRing();
+        // 只有真的计过时（剩余 < 总时长）才保留通知栏，重新选模式/重置则收起
+        nativeTimer(remaining > 0 && remaining < total ? "paused" : "idle");
+      }
+
+      function resetTimer() {
+        pauseTimer();
+        setMode(mode);
+        toast("已重置", "replay");
+      }
+
+      function skipTimer() {
+        handleComplete(true);
+      }
+
+      function handleComplete(skipped = false) {
+        const wasRunning = running;
+        pauseTimer();
+        ensureToday();
+        const finishedMode = mode;
+        if (finishedMode === "focus" && !skipped) {
+          completedSessions++;
+          dayStats.sessions++;
+          dayStats.focusMin += settings.focusMinutes;
+          // 当前周期内连续完成的专注轮数（1..sessionsBeforeLong）
+          const n = settings.sessionsBeforeLong;
+          const inCycle = completedSessions % n;
+          const streak = inCycle === 0 ? n : inCycle;
+          dayStats.best = Math.max(dayStats.best, streak);
+          saveCycle();
+          saveDayStats();
+          renderStats();
+          updateDots();
+        }
+        // 安卓端由原生服务发完成通知（锁屏时也能响，音色也是用户选的），这里不再重复提示
+        if (!skipped && settings.sound && !IN_APP) playChime();
+        if (!skipped && !IN_APP) notifyComplete(finishedMode);
+
+        // 决定下一模式
+        let nextMode;
+        if (finishedMode === "focus") {
+          // 仅在完成过至少一轮且到达间隔倍数时才进入长休息（避免 0 % n === 0 误判）
+          nextMode =
+            completedSessions > 0 &&
+            completedSessions % settings.sessionsBeforeLong === 0
+              ? "long"
+              : "short";
+        } else {
+          nextMode = "focus";
+        }
+        toast(
+          skipped ? "已跳过" : `完成${MODES[finishedMode].label}`,
+          skipped ? "skip_next" : "check_circle",
+        );
+        setMode(nextMode);
+
+        if (settings.autoStart && wasRunning && !skipped) startTimer();
+      }
+
+      function updateDots() {
+        const wrap = $("#sessionDots");
+        wrap.innerHTML = "";
+        const n = settings.sessionsBeforeLong;
+        // 当前这一轮（距离上次长休息）已完成的专注数
+        const inCycle = completedSessions % n;
+        const doneCount = inCycle === 0 && completedSessions > 0 ? n : inCycle;
+        for (let i = 0; i < n; i++) {
+          const d = document.createElement("span");
+          d.className = "dot" + (i < doneCount ? " done" : "");
+          wrap.appendChild(d);
+        }
+      }
+
+      /* =========================== 提示音 =========================== */
+      // 可选音色；id 必须与安卓端 Tones.kt / res/raw/tone_*.wav 一一对应，
+      // 两边名字与性格保持一致（由 android/tools/gen_tones.py 生成 WAV）
+      const TONES = [
+        { id: "chime", label: "清脆" },
+        { id: "bell", label: "钟声" },
+        { id: "marimba", label: "木琴" },
+        { id: "wood", label: "木鱼" },
+        { id: "beep", label: "电子" },
+        { id: "custom", label: "自定义" },
+        { id: "none", label: "静音" },
+      ];
+      // 网页版的合成参数（安卓端放的是等价的 WAV）
+      // notes 项：[起始秒, 时长秒, 频率, 衰减秒]
+      const TONE_SPECS = {
+        chime: {
+          type: "sine",
+          amp: 0.24,
+          notes: [
+            [0, 0.55, 523.25, 0.16],
+            [0.18, 0.55, 659.25, 0.16],
+            [0.36, 0.6, 783.99, 0.18],
+          ],
+        },
+        bell: {
+          type: "sine",
+          amp: 0.22,
+          notes: [
+            [0, 1.6, 392, 0.55],
+            [0, 1.4, 788, 0.45],
+            [0, 1.0, 1184, 0.35],
+          ],
+        },
+        marimba: {
+          type: "triangle",
+          amp: 0.24,
+          notes: [
+            [0, 0.6, 587.33, 0.22],
+            [0.2, 0.8, 880, 0.3],
+          ],
+        },
+        wood: {
+          type: "square",
+          amp: 0.1,
+          notes: [
+            [0, 0.14, 1180, 0.045],
+            [0.32, 0.14, 1180, 0.045],
+          ],
+        },
+        beep: {
+          type: "square",
+          amp: 0.12,
+          notes: [
+            [0, 0.13, 880, 0.05],
+            [0.21, 0.13, 880, 0.05],
+          ],
+        },
+      };
+      let audioCtx = null;
+      const customAudio = {}; // 浏览器里正在播的自定义音频，持引用避免被回收
+
+      /* 自定义音频很可能是整首歌，最多播 10 秒、最后 0.4 秒渐弱收尾
+         （安卓端 Tones.kt 里也有同样的限时，两边行为一致） */
+      const AUDIO_MAX_MS = 10000;
+      const AUDIO_FADE_MS = 400;
+      function capAudio(a, slot) {
+        clearTimeout(a.__capTimer);
+        a.__capTimer = setTimeout(() => {
+          let elapsed = 0;
+          const step = 60;
+          a.__fadeTimer = setInterval(() => {
+            elapsed += step;
+            const v = Math.max(0, 1 - elapsed / AUDIO_FADE_MS);
+            try {
+              a.volume = v;
+            } catch {}
+            if (v <= 0) {
+              clearInterval(a.__fadeTimer);
+              try {
+                a.pause();
+              } catch {}
+              if (customAudio[slot] === a) customAudio[slot] = null;
+            }
+          }, step);
+        }, AUDIO_MAX_MS - AUDIO_FADE_MS);
+      }
+      function releaseAudio(a, slot) {
+        clearTimeout(a.__capTimer);
+        clearInterval(a.__fadeTimer);
+        a.__capTimer = a.__fadeTimer = null;
+        if (customAudio[slot] === a) customAudio[slot] = null;
+      }
+
+      /* 播指定音色。slot 取 "start" / "end"（自定义音频是按槽位分开存的）。
+         安卓端交给原生：锁屏时网页发不出声，而且必须和通知栏用同一套音色 */
+      function playTone(id, slot) {
+        if (!id || id === "none") return;
+        slot = slot || "end";
+        const b = window.MiuixBridge;
+        if (b && typeof b.playSound === "function") {
+          try {
+            b.playSound(id, slot);
+            return;
+          } catch {}
+        }
+        if (id === "custom") {
+          // 浏览器版：用户在设置里读进来的本地音频（dataURL）
+          const src = settings[slot + "ToneFile"];
+          if (!src) return;
+          try {
+            if (customAudio[slot]) {
+              customAudio[slot].pause();
+              releaseAudio(customAudio[slot], slot);
+            }
+            const a = new Audio(src);
+            customAudio[slot] = a;
+            a.addEventListener("ended", () => releaseAudio(a, slot));
+            a.play();
+            capAudio(a, slot);
+          } catch {}
+          return;
+        }
+        const spec = TONE_SPECS[id];
+        if (!spec) return;
+        try {
+          audioCtx =
+            audioCtx ||
+            new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+          spec.notes.forEach(([at, dur, freq, decay]) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = spec.type;
+            osc.frequency.value = freq;
+            const t = audioCtx.currentTime + at;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(spec.amp, t + 0.006);
+            gain.gain.exponentialRampToValueAtTime(0.0005, t + decay + 0.25);
+            osc.connect(gain).connect(audioCtx.destination);
+            osc.start(t);
+            osc.stop(t + dur);
+          });
+        } catch {}
+      }
+
+      function playStart() {
+        playTone(settings.startTone, "start");
+      }
+      function playChime() {
+        playTone(settings.endTone, "end");
+      }
+
+      /* ---- 自定义提示音 ---- */
+      function hasCustomTone(slot) {
+        return !!settings[slot + "ToneName"];
+      }
+      function toneHint(slot) {
+        return hasCustomTone(slot)
+          ? "已上传：" + settings[slot + "ToneName"]
+          : "点击试听，或上传自定义";
+      }
+
+      /* 点「上传」：App 走原生文件选择器 + 应用私有目录；
+         网页版读成 dataURL 存进设置（短提示音体积很小，localStorage 放得下） */
+      function uploadTone(slot) {
+        const b = window.MiuixBridge;
+        if (b && typeof b.pickCustomTone === "function") {
+          try {
+            b.pickCustomTone(slot);
+            return;
+          } catch {}
+        }
+        const input = document.createElement("input");
+        input.type = "file";
+        input.accept = "audio/*";
+        input.addEventListener("change", () => {
+          const f = input.files && input.files[0];
+          if (!f) return;
+          if (f.size > 2 * 1024 * 1024) {
+            toast("音频太大，请用 2MB 以内的短提示音", "error");
+            return;
+          }
+          const fr = new FileReader();
+          fr.onload = () => {
+            settings[slot + "ToneFile"] = fr.result;
+            settings[slot + "ToneName"] = f.name;
+            settings[slot + "Tone"] = "custom";
+            saveSettings();
+            renderToneRows();
+            if (slot === "end") syncNativeTimer();
+            if (settings.sound) playTone("custom", slot);
+            toast("已设为自定义提示音", "music_note");
+          };
+          fr.onerror = () => toast("读取音频失败", "error");
+          fr.readAsDataURL(f);
+        });
+        input.click();
+      }
+
+      /* 原生选完音频后的回报 */
+      window.__miuixToneUploaded = function (slot, ok, info) {
+        if (!ok) {
+          if (info) toast(info, "error");
+          return;
+        }
+        settings[slot + "ToneName"] = info || "自定义音频";
+        settings[slot + "Tone"] = "custom";
+        saveSettings();
+        renderToneRows();
+        if (slot === "end") syncNativeTimer();
+        if (settings.sound) playTone("custom", slot);
+        toast("已设为自定义提示音", "music_note");
+      };
+
+      function bindToneUpload() {
+        const s = $("#startToneUpload");
+        const e = $("#endToneUpload");
+        if (s) s.addEventListener("click", () => uploadTone("start"));
+        if (e) e.addEventListener("click", () => uploadTone("end"));
+      }
+
+      /* 设置页里的两行音色选择 */
+      function renderToneRows() {
+        [
+          ["#startToneRow", "start", "#startToneHint"],
+          ["#endToneRow", "end", "#endToneHint"],
+        ].forEach(([sel, slot, hintSel]) => {
+          const row = $(sel);
+          if (!row) return;
+          const key = slot + "Tone";
+          row.innerHTML = "";
+          TONES.forEach((t) => {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.className =
+              "tone-chip" + (settings[key] === t.id ? " active" : "");
+            b.dataset.tone = t.id;
+            b.textContent = t.label;
+            b.addEventListener("click", () => {
+              // 还没传过就先把人引到文件选择器，而不是选一个放不出声的空档
+              if (t.id === "custom" && !hasCustomTone(slot)) {
+                uploadTone(slot);
+                return;
+              }
+              settings[key] = t.id;
+              saveSettings();
+              [...row.querySelectorAll(".tone-chip")].forEach((x) =>
+                x.classList.toggle("active", x.dataset.tone === t.id),
+              );
+              // 点哪个就听哪个，方便挑
+              if (settings.sound) playTone(t.id, slot);
+              // 结束音要同步给原生：锁屏时是原生服务负责响
+              if (slot === "end") syncNativeTimer();
+            });
+            row.appendChild(b);
+          });
+          const h = $(hintSel);
+          if (h) h.textContent = toneHint(slot);
+        });
+      }
+
+      /* =========================== 统计渲染 =========================== */
+      function renderStats() {
+        ensureToday();
+        setStat("#statSessions", dayStats.sessions);
+        setStat("#statFocus", dayStats.focusMin);
+        setStat("#statBest", dayStats.best);
+        // 累计统计
+        const all = allStats();
+        let totalSessions = 0,
+          totalFocus = 0,
+          activeDays = 0;
+        Object.values(all).forEach((s) => {
+          totalSessions += s.sessions || 0;
+          totalFocus += s.focusMin || 0;
+          if ((s.sessions || 0) > 0) activeDays++;
+        });
+        setStat("#statTotalSessions", totalSessions);
+        setStat("#statTotalHours", (totalFocus / 60).toFixed(1));
+        setStat("#statActiveDays", activeDays);
+        renderWeek();
+      }
+      function setStat(sel, val) {
+        const el = $(sel);
+        if (String(val) !== el.textContent) {
+          el.classList.remove("bump");
+          void el.offsetWidth; // 强制重排以重启动画
+          el.classList.add("bump");
+        }
+        el.textContent = val;
+      }
+      function renderWeek() {
+        const wrap = $("#weekChart");
+        wrap.innerHTML = "";
+        const days = [];
+        const now = new Date();
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(now);
+          d.setDate(now.getDate() - i);
+          const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+          let all = {};
+          try {
+            all =
+              JSON.parse(localStorage.getItem("pomodoro.miuix.stats")) || {};
+          } catch {}
+          const stat = all[key] || { sessions: 0 };
+          days.push({
+            label: ["日", "一", "二", "三", "四", "五", "六"][d.getDay()],
+            // 兜底：历史/异常数据可能缺 sessions 字段，避免图表高度算出 NaN
+            val: Math.max(0, Number(stat.sessions) || 0),
+          });
+        }
+        const max = Math.max(1, ...days.map((d) => d.val));
+        days.forEach((d, idx) => {
+          const bar = document.createElement("div");
+          bar.style.cssText = `flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%;`;
+          const count = document.createElement("span");
+          count.style.cssText = `font-size:11px;font-weight:700;color:var(--miuix-primary);font-variant-numeric:tabular-nums;opacity:${d.val ? 1 : 0};`;
+          count.textContent = d.val;
+          const fill = document.createElement("div");
+          const h = Math.max(6, Math.round((d.val / max) * 100));
+          fill.style.cssText = `width:18px;border-radius:9px;background:linear-gradient(180deg,var(--miuix-primary),var(--miuix-primary-container));height:${h}%;transform-origin:bottom;animation:barGrow .6s var(--spring) backwards;animation-delay:${idx * 0.07}s;box-shadow:0 0 12px color-mix(in srgb, var(--miuix-primary) 35%, transparent);`;
+          const lab = document.createElement("span");
+          lab.style.cssText = `font-size:11px;color:var(--miuix-on-surface-variant);font-weight:600;`;
+          lab.textContent = d.label;
+          bar.appendChild(count);
+          bar.appendChild(fill);
+          bar.appendChild(lab);
+          wrap.appendChild(bar);
+        });
+      }
+
+      /* =========================== 主题颜色选择 =========================== */
+      function renderColorRow() {
+        const row = $("#colorRow");
+        row.innerHTML = "";
+        KEY_COLORS.forEach((c) => {
+          const sw = document.createElement("button");
+          sw.className =
+            "color-swatch" + (settings.accent === c.hex ? " active" : "");
+          sw.style.background = `linear-gradient(135deg, ${c.hex}, ${shade(c.hex, 20)})`;
+          sw.title = c.name;
+          sw.addEventListener("click", () => {
+            settings.accent = c.hex;
+            saveSettings();
+            applyAccent();
+            renderColorRow();
+            toast("强调色：" + c.name, "palette");
+          });
+          row.appendChild(sw);
+        });
+      }
+
+      /* =========================== 设置步进器 & 开关 =========================== */
+      const DISPLAY_KEYS = [
+        "focusMinutes",
+        "shortMinutes",
+        "longMinutes",
+        "sessionsBeforeLong",
+      ];
+      function bindSteppers() {
+        $$("[data-step]").forEach((btn) => {
+          if (["-1", "1"].includes(btn.dataset.step) === false) return;
+          const rowEl = btn.closest(".setting-row");
+          const key = rowEl.dataset.step;
+          const min = +rowEl.dataset.min,
+            max = +rowEl.dataset.max;
+          btn.addEventListener("click", () => {
+            const delta = +btn.dataset.step;
+            const val = Math.min(max, Math.max(min, settings[key] + delta));
+            settings[key] = val;
+            saveSettings();
+            rowEl.querySelector(".num").textContent = val;
+            // 若修改的是当前模式对应的时长，同步刷新计时器
+            if (MODES[mode].minutesKey === key) setMode(mode);
+            // 「长休息间隔」决定圆点数量，改完立刻重绘（否则要等下一次完成事件才更新）
+            if (key === "sessionsBeforeLong") updateDots();
+          });
+        });
+        // 显示数值
+        $$(".setting-row[data-step]").forEach((row) => {
+          const key = row.dataset.step;
+          row.querySelector(".num").textContent = settings[key];
+        });
+      }
+
+      function bindSwitches() {
+        const auto = $("#autoStartSwitch");
+        auto.classList.toggle("on", settings.autoStart);
+        auto.addEventListener("click", () => {
+          settings.autoStart = !settings.autoStart;
+          saveSettings();
+          auto.classList.toggle("on", settings.autoStart);
+        });
+        const snd = $("#soundSwitch");
+        snd.classList.toggle("on", settings.sound);
+        snd.addEventListener("click", () => {
+          settings.sound = !settings.sound;
+          saveSettings();
+          snd.classList.toggle("on", settings.sound);
+          // 同步给原生服务：计时进行中关掉提示音，结束时就不该再响
+          syncNativeTimer();
+        });
+        const ntf = $("#notifySwitch");
+        ntf.classList.toggle("on", settings.notify);
+        ntf.addEventListener("click", async () => {
+          if (settings.notify) {
+            settings.notify = false;
+          } else {
+            const ok = await requestNotify();
+            if (!ok) {
+              // 未授权时不要把开关点亮，避免出现"看似开启实则无效"
+              ntf.classList.remove("on");
+              return;
+            }
+            settings.notify = true;
+          }
+          saveSettings();
+          ntf.classList.toggle("on", settings.notify);
+          // 同步给原生服务：进行中关掉桌面通知，结束时就不该再弹完成通知
+          syncNativeTimer();
+        });
+        const mini = $("#miniTimerSwitch");
+        mini.classList.toggle("on", settings.miniTimer);
+        mini.addEventListener("click", () => {
+          settings.miniTimer = !settings.miniTimer;
+          showMini(settings.miniTimer);
+          saveSettings();
+          mini.classList.toggle("on", settings.miniTimer);
+        });
+        const ovs = $("#overscrollSwitch");
+        ovs.classList.toggle("on", settings.overscroll !== false);
+        ovs.addEventListener("click", () => {
+          settings.overscroll = settings.overscroll === false;
+          saveSettings();
+          ovs.classList.toggle("on", settings.overscroll !== false);
+          // 关掉时立刻把已经拉出去的那一截收回来
+          if (!settings.overscroll) resetOverscrollStretch();
+          toast(
+            settings.overscroll ? "已开启超出回弹" : "已关闭超出回弹",
+            "swipe_vertical",
+          );
+        });
+      }
+
+      /* =========================== 桌面通知 =========================== */
+      function requestNotify() {
+        // 安卓端走原生通知权限（WebView 里没有 Notification API）
+        const b = window.MiuixBridge;
+        if (b && typeof b.requestNotification === "function") {
+          try {
+            return Promise.resolve(!!b.requestNotification());
+          } catch {
+            return Promise.resolve(false);
+          }
+        }
+        if (!("Notification" in window)) {
+          toast("当前浏览器不支持通知", "error");
+          return Promise.resolve(false);
+        }
+        if (Notification.permission === "granted") return Promise.resolve(true);
+        if (Notification.permission === "denied") {
+          toast("通知已被浏览器拒绝", "error");
+          return Promise.resolve(false);
+        }
+        return Notification.requestPermission().then((p) => {
+          if (p !== "granted") {
+            toast("未授权通知，请检查浏览器设置", "error");
+            return false;
+          }
+          toast("桌面通知已开启", "notifications");
+          return true;
+        });
+      }
+      function notifyComplete(finishedMode) {
+        if (!settings.notify) return;
+        if (!("Notification" in window)) return;
+        if (Notification.permission !== "granted") return;
+        try {
+          new Notification("🍅 番茄钟", {
+            body:
+              finishedMode === "focus"
+                ? "专注完成！休息一下吧 ☕"
+                : "休息结束，准备开始新的专注 🌟",
+            icon: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%233482FF' d='M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Zm4.2 14.2L11 13.7V7h1.5v5.6l4.5 2.7Z'/%3E%3C/svg%3E",
+            tag: "pomodoro",
+          });
+        } catch {}
+      }
+
+      /* 原生把「通知权限是否拿到」回传过来（权限弹窗是异步的） */
+      window.__miuixNotifyPermission = function (granted) {
+        const changed = !!settings.notify !== !!granted;
+        settings.notify = !!granted;
+        saveSettings();
+        const ntf = $("#notifySwitch");
+        if (ntf) ntf.classList.toggle("on", settings.notify);
+        if (changed)
+          toast(
+            granted ? "通知已开启" : "未授予通知权限，通知栏不会显示倒计时",
+            granted ? "notifications" : "error",
+          );
+        // 没权限时发的那条通知会被系统直接丢掉，拿到权限后要重新推一次状态补发
+        if (granted) syncNativeTimer();
+      };
+
+      /* 通知栏上的按钮（继续/暂停、停止、跳过）由原生前台服务转成指令送回来；
+         native 侧发通知失败时也会用 "warn xxx" 把原因送过来 */
+      window.__miuixTimerCommand = function (cmd) {
+        if (cmd.indexOf("warn ") === 0) {
+          toast(cmd.slice(5), "error");
+          return;
+        }
+        switch (cmd) {
+          case "toggle":
+            running ? pauseTimer() : startTimer();
+            break;
+          case "stop":
+            resetTimer();
+            break;
+          case "skip":
+            handleComplete(true);
+            break;
+          case "finished":
+            // 原生服务按时判定结束：网页若还活着就把这一轮结算掉。
+            // 两边的 running 互为门闸，不会重复计次。
+            if (running) handleComplete();
+            break;
+        }
+      };
+
+      /* 回到前台立刻按绝对时间校准（锁屏期间定时器可能被冻结） */
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && running) tick();
+      });
+
+      /* =========================== 悬浮迷你计时器 =========================== */
+      function syncMini() {
+        const m = Math.floor(remaining / 60);
+        const s = remaining % 60;
+        $("#miniTime").textContent = `${String(m).padStart(2, "0")}:${String(
+          s,
+        ).padStart(2, "0")}`;
+        const r = 42;
+        const circ = 2 * Math.PI * r;
+        const frac = total > 0 ? remaining / total : 0;
+        $("#miniProgress").style.strokeDasharray = circ;
+        $("#miniProgress").style.strokeDashoffset = circ * (1 - frac);
+        $("#miniIcon").textContent = running ? "pause" : "play_arrow";
+      }
+      function showMini(v) {
+        $("#miniTimer").classList.toggle("show", v);
+        if (v) syncMini();
+      }
+      function bindMini() {
+        $("#miniBtn").addEventListener("click", () => {
+          running ? pauseTimer() : startTimer();
+          syncMini();
+        });
+        // 拖动
+        const el = $("#miniTimer");
+        let startX = 0,
+          startY = 0,
+          origLeft = 0,
+          origTop = 0,
+          dragging = false;
+        el.addEventListener("pointerdown", (e) => {
+          if (e.target.closest(".mini-btn")) return;
+          dragging = true;
+          const rect = el.getBoundingClientRect();
+          startX = e.clientX;
+          startY = e.clientY;
+          origLeft = rect.left;
+          origTop = rect.top;
+          el.setPointerCapture && el.setPointerCapture(e.pointerId);
+        });
+        el.addEventListener("pointermove", (e) => {
+          if (!dragging) return;
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+          el.style.right = "auto";
+          el.style.left = origLeft + dx + "px";
+          el.style.top = origTop + dy + "px";
+          el.style.bottom = "auto";
+        });
+        el.addEventListener("pointerup", () => (dragging = false));
+        el.addEventListener("pointercancel", () => (dragging = false));
+      }
+
+      /* =========================== 导出数据 =========================== */
+      function allStats() {
+        let all = {};
+        try {
+          all = JSON.parse(localStorage.getItem("pomodoro.miuix.stats")) || {};
+        } catch {}
+        return all;
+      }
+      function exportData() {
+        const payload = {
+          app: "番茄钟 · Miuix",
+          exportedAt: new Date().toISOString(),
+          settings: {
+            focusMinutes: settings.focusMinutes,
+            shortMinutes: settings.shortMinutes,
+            longMinutes: settings.longMinutes,
+            sessionsBeforeLong: settings.sessionsBeforeLong,
+          },
+          stats: allStats(),
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `pomodoro-${todayKey()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        toast("已导出数据", "download");
+      }
+
+      /* =========================== 背景图片 / API =========================== */
+      const PRESET_APIS = [
+        "https://nekos.life/api/v2/img/waifu",
+        "https://nekos.life/api/v2/img/neko",
+        "https://nekos.life/api/v2/img/kitsune",
+        "https://nekos.life/api/v2/img/husbando",
+        "https://api.waifu.pics/sfw/waifu",
+        "https://api.waifu.pics/sfw/neko",
+        "https://api.waifu.pics/sfw/shinobu",
+      ];
+      let apiTimer = null;
+
+      function apiPool() {
+        return PRESET_APIS.concat(settings.bgApis || []);
+      }
+
+      let bgPreloadImg = null;
+      function applyBackground() {
+        const el = $("#bgImage");
+        const root = document.documentElement;
+        const url =
+          settings.bgMode === "custom" ? settings.bgUrl : settings.bgApiLast;
+        if (settings.bgMode === "gradient" || !url) {
+          root.removeAttribute("data-bg-active");
+          el.style.backgroundImage = "";
+          el.classList.remove("show");
+          return;
+        }
+        // 立即标记玻璃态，让模糊样式先行生效
+        root.setAttribute("data-bg-active", "true");
+        // 预加载图片，加载完成后再淡入，避免"背景来不及模糊"
+        if (bgPreloadImg) {
+          bgPreloadImg.onload = null;
+          bgPreloadImg.onerror = null;
+        }
+        const img = new Image();
+        bgPreloadImg = img;
+        img.onload = () => {
+          if (bgPreloadImg !== img) return;
+          el.style.backgroundImage = `url("${url}")`;
+          el.classList.add("show");
+        };
+        img.onerror = () => {
+          if (bgPreloadImg !== img) return;
+          root.removeAttribute("data-bg-active");
+          el.classList.remove("show");
+          toast("背景图片加载失败", "error");
+        };
+        img.src = url;
+      }
+
+      function extractImageUrl(data) {
+        if (typeof data === "string") return data;
+        return (
+          data?.url ||
+          data?.data?.url ||
+          data?.image ||
+          data?.results?.[0]?.url ||
+          data?.[0]?.url ||
+          ""
+        );
+      }
+
+      function fetchApi() {
+        const pool = apiPool();
+        if (!pool.length) {
+          toast("暂无可用 API，请添加 API", "error");
+          return Promise.resolve(null);
+        }
+        // 优先使用选中的来源；否则洗牌后逐个尝试，最多 3 个来源
+        const target =
+          settings.bgApi && settings.bgApi !== "random" ? settings.bgApi : null;
+        let order = pool.slice();
+        if (target) {
+          order = [target, ...order.filter((u) => u !== target)];
+        } else {
+          for (let i = order.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [order[i], order[j]] = [order[j], order[i]];
+          }
+        }
+        const attempts = order.slice(0, Math.min(3, order.length));
+        const tryOne = (i) => {
+          if (i >= attempts.length) {
+            toast("获取图片失败，请稍后再试", "error");
+            return null;
+          }
+          const ep = attempts[i];
+          return fetch(ep)
+            .then((r) => (r.ok ? r.json() : Promise.reject()))
+            .then((data) => {
+              const url = extractImageUrl(data);
+              if (!url) throw new Error("no url");
+              settings.bgApiLast = url;
+              saveSettings();
+              applyBackground();
+              return url;
+            })
+            .catch(() => tryOne(i + 1));
+        };
+        return tryOne(0);
+      }
+
+      function startApiAuto() {
+        stopApiAuto();
+        if (settings.bgMode !== "api") return;
+        fetchApi();
+        apiTimer = setInterval(fetchApi, 5 * 60 * 1000);
+      }
+      function stopApiAuto() {
+        if (apiTimer) {
+          clearInterval(apiTimer);
+          apiTimer = null;
+        }
+      }
+
+      function renderApiSelect() {
+        const sel = $("#bgApiSelect");
+        sel.innerHTML = "";
+        const opt = document.createElement("option");
+        opt.value = "random";
+        opt.textContent = "随机所有来源";
+        sel.appendChild(opt);
+        PRESET_APIS.concat(settings.bgApis || []).forEach((url, i) => {
+          const o = document.createElement("option");
+          o.value = url;
+          o.textContent = `来源 ${i + 1}`;
+          sel.appendChild(o);
+        });
+        sel.value =
+          settings.bgApi &&
+          settings.bgApi !== "random" &&
+          apiPool().includes(settings.bgApi)
+            ? settings.bgApi
+            : "random";
+      }
+
+      function renderApiCustomList() {
+        const list = $("#bgApiCustomList");
+        const custom = settings.bgApis || [];
+        if (!custom.length) {
+          list.innerHTML = "";
+          list.style.display = "none";
+          return;
+        }
+        list.style.display = "";
+        list.innerHTML = "已添加自定义 API：";
+        custom.forEach((url, i) => {
+          const label = document.createElement("span");
+          label.textContent = ` ${i + 1} `;
+          const rm = document.createElement("button");
+          rm.textContent = "移除";
+          rm.style.cssText =
+            "margin-left:6px;padding:2px 8px;border-radius:8px;border:1px solid var(--miuix-divider);background:var(--miuix-surface-container-high);color:var(--miuix-error);font-size:12px;cursor:pointer;font-family:inherit;";
+          rm.addEventListener("click", () => {
+            settings.bgApis = (settings.bgApis || []).filter((x) => x !== url);
+            if (settings.bgApi === url) settings.bgApi = "random";
+            saveSettings();
+            renderApiSelect();
+            renderApiCustomList();
+            toast("已移除 API", "delete");
+          });
+          const wrapSpan = document.createElement("span");
+          wrapSpan.textContent = `  · ${url.slice(0, 40)}...`;
+          list.appendChild(label);
+          list.appendChild(document.createTextNode(""));
+          list.appendChild(rm);
+          list.appendChild(wrapSpan);
+          list.appendChild(document.createElement("br"));
+        });
+      }
+
+      function initBackground() {
+        const segBtns = $$("#bgSegment button");
+        segBtns.forEach((b) =>
+          b.classList.toggle("active", b.dataset.bg === settings.bgMode),
+        );
+        $("#bgCustomWrap").style.display =
+          settings.bgMode === "custom" ? "" : "none";
+        $("#bgApiWrap").style.display = settings.bgMode === "api" ? "" : "none";
+        if (settings.bgMode === "custom")
+          $("#bgUrlInput").value = settings.bgUrl || "";
+        renderApiSelect();
+        renderApiCustomList();
+        applyBackground();
+        if (settings.bgMode === "api") startApiAuto();
+      }
+
+      function readFileAsDataURL(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+      /* 预校验图片能否加载，返回 Promise<boolean> */
+      function testImageUrl(url) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+          img.src = url;
+        });
+      }
+      function compressImage(dataUrl, maxW = 1920, quality = 0.85) {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            const scale = Math.min(1, maxW / img.width);
+            const w = Math.round(img.width * scale);
+            const h = Math.round(img.height * scale);
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, w, h);
+            resolve(canvas.toDataURL("image/jpeg", quality));
+          };
+          img.onerror = () => resolve(dataUrl);
+          img.src = dataUrl;
+        });
+      }
+
+      function bindBackground() {
+        const segBtns = $$("#bgSegment button");
+        segBtns.forEach((b) => {
+          b.addEventListener("click", () => {
+            settings.bgMode = b.dataset.bg;
+            saveSettings();
+            segBtns.forEach((x) => x.classList.toggle("active", x === b));
+            $("#bgCustomWrap").style.display =
+              settings.bgMode === "custom" ? "" : "none";
+            $("#bgApiWrap").style.display =
+              settings.bgMode === "api" ? "" : "none";
+            if (settings.bgMode === "custom") {
+              stopApiAuto();
+              $("#bgUrlInput").value = settings.bgUrl || "";
+              applyBackground();
+            } else if (settings.bgMode === "api") {
+              renderApiSelect();
+              renderApiCustomList();
+              startApiAuto();
+            } else {
+              stopApiAuto();
+              // 交给 applyBackground 统一清理，否则 data-bg-active 残留会让界面一直是毛玻璃
+              applyBackground();
+            }
+          });
+        });
+        $("#bgApplyBtn").addEventListener("click", async () => {
+          const url = $("#bgUrlInput").value.trim();
+          if (!url) {
+            toast("请输入图片链接", "error");
+            return;
+          }
+          if (!/^(https?:\/\/|data:image\/)/i.test(url)) {
+            toast("请输入以 http(s):// 开头的图片链接", "error");
+            return;
+          }
+          // 先确认图片真的能加载，避免把无效链接持久化后每次打开都报错
+          if (!(await testImageUrl(url))) {
+            toast("图片加载失败，请检查链接", "error");
+            return;
+          }
+          settings.bgUrl = url;
+          saveSettings();
+          applyBackground();
+          toast("背景已更新", "image");
+        });
+        $("#bgUploadBtn").addEventListener("click", () =>
+          $("#bgFileInput").click(),
+        );
+        $("#bgFileInput").addEventListener("change", async (e) => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          try {
+            const raw = await readFileAsDataURL(file);
+            const dataUrl = await compressImage(raw);
+            // 压缩失败时会回退成原始 dataURL，这里再校验一次，避免存入无法解码的内容
+            if (!(await testImageUrl(dataUrl))) {
+              throw new Error("invalid image");
+            }
+            settings.bgUrl = dataUrl;
+            saveSettings();
+            applyBackground();
+            toast("本地上传成功", "image");
+          } catch {
+            toast("上传失败，请换一张图片", "error");
+          }
+          e.target.value = "";
+        });
+        $("#bgShuffleBtn").addEventListener("click", () => {
+          fetchApi().then((u) => {
+            if (u) toast("已换一张", "shuffle");
+          });
+        });
+        $("#bgApiAddBtn").addEventListener("click", () => {
+          const url = $("#bgApiInput").value.trim();
+          if (!url) {
+            toast("请输入 API 链接", "error");
+            return;
+          }
+          if (!/^https?:\/\//i.test(url)) {
+            toast("请输入以 http(s):// 开头的链接", "error");
+            return;
+          }
+          settings.bgApis = settings.bgApis || [];
+          if (settings.bgApis.includes(url)) {
+            toast("该 API 已存在", "info");
+            return;
+          }
+          settings.bgApis.push(url);
+          saveSettings();
+          $("#bgApiInput").value = "";
+          renderApiSelect();
+          renderApiCustomList();
+          toast("已添加 API", "add");
+        });
+        $("#bgApiSelect").addEventListener("change", (e) => {
+          settings.bgApi = e.target.value;
+          saveSettings();
+        });
+      }
+
+      /* =========================== 页面切换 & 顶栏 =========================== */
+      const PAGE_META = {
+        timer: { title: "番茄钟", sub: "专注每一刻" },
+        stats: { title: "统计", sub: "你的专注足迹" },
+        todos: { title: "待办", sub: "记录你的任务" },
+        settings: { title: "设置", sub: "自定义你的节奏" },
+      };
+
+      function switchPage(page) {
+        $$(".rail-item").forEach((b) =>
+          b.classList.toggle("active", b.dataset.page === page),
+        );
+        $$(".page").forEach((p) =>
+          p.classList.toggle("active", p.id === "page-" + page),
+        );
+        const meta = PAGE_META[page];
+        $("#pageTitle").textContent = meta.title;
+        $("#pageSubtitle").textContent = meta.sub;
+        if (page === "stats") renderStats();
+        if (page === "todos") renderTodos();
+      }
+
+      /* =========================== 待办清单 =========================== */
+      function loadTodos() {
+        try {
+          return JSON.parse(localStorage.getItem("pomodoro.miuix.todos")) || [];
+        } catch {
+          return [];
+        }
+      }
+      function saveTodos(todos) {
+        localStorage.setItem("pomodoro.miuix.todos", JSON.stringify(todos));
+      }
+      function updateTodoStats() {
+        const todos = loadTodos();
+        const done = todos.filter((t) => t.done).length;
+        $("#todoStats").textContent = todos.length
+          ? `已完成 ${done} / ${todos.length}`
+          : "";
+      }
+
+      function renderTodos() {
+        const todos = loadTodos();
+        const list = $("#todoList");
+        list.innerHTML = "";
+        updateTodoStats();
+        if (!todos.length) {
+          list.innerHTML = `<div class="todo-empty">暂无待办，添加一个开始吧 ✨</div>`;
+          return;
+        }
+        todos.forEach((t, i) => {
+          const item = document.createElement("div");
+          item.className = "todo-item" + (t.done ? " done" : "");
+          const check = document.createElement("button");
+          check.className = "todo-check";
+          check.title = t.done ? "标记为未完成" : "标记为完成";
+          // 用颜色填充表示完成状态（无需勾选图标，避免未居中）
+          check.innerHTML = "";
+          check.addEventListener("click", () => {
+            todos[i].done = !todos[i].done;
+            saveTodos(todos);
+            // 原地切换，避免整列表重渲染造成位移
+            item.classList.toggle("done", todos[i].done);
+            check.title = todos[i].done ? "标记为未完成" : "标记为完成";
+            updateTodoStats();
+          });
+          const text = document.createElement("div");
+          text.className = "todo-text";
+          text.textContent = t.text;
+          const del = document.createElement("button");
+          del.className = "todo-del";
+          del.title = "删除";
+          del.innerHTML = `<span class="material-symbols-rounded">delete</span>`;
+          del.addEventListener("click", () => {
+            todos.splice(i, 1);
+            saveTodos(todos);
+            renderTodos();
+            toast("已删除待办", "delete");
+          });
+          item.appendChild(check);
+          item.appendChild(text);
+          item.appendChild(del);
+          list.appendChild(item);
+        });
+      }
+      function bindTodos() {
+        const input = $("#todoInput");
+        const add = () => {
+          const text = input.value.trim();
+          if (!text) return;
+          const todos = loadTodos();
+          todos.push({ text, done: false });
+          saveTodos(todos);
+          input.value = "";
+          renderTodos();
+          toast("已添加待办", "add");
+        };
+        $("#todoAddBtn").addEventListener("click", add);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") add();
+        });
+      }
+
+      /* =========================== 事件绑定 =========================== */
+      $("#startBtn").addEventListener("click", () =>
+        running ? pauseTimer() : startTimer(),
+      );
+      $("#resetBtn").addEventListener("click", resetTimer);
+      $("#skipBtn").addEventListener("click", skipTimer);
+      $("#themeToggle").addEventListener("click", cycleTheme);
+
+      $$("#modeSegment button").forEach((b) =>
+        b.addEventListener("click", () => setMode(b.dataset.mode)),
+      );
+
+      $$(".rail-item").forEach((b) =>
+        b.addEventListener("click", () => switchPage(b.dataset.page)),
+      );
+
+      /* 空格键快速开始/暂停 */
+      document.addEventListener("keydown", (e) => {
+        if (
+          e.code === "Space" &&
+          e.target.tagName !== "BUTTON" &&
+          e.target.tagName !== "INPUT"
+        ) {
+          e.preventDefault();
+          running ? pauseTimer() : startTimer();
+        }
+      });
+
+      /* =========================== 涟漪触感（Miuix 反馈） =========================== */
+      function enableRipples() {
+        const sel =
+          ".btn, .icon-btn, .segment button, .rail-item, .stepper button, .color-swatch, .tone-chip, .upload-btn, .switch";
+        $$(sel).forEach((el) => {
+          if (el.classList.contains("ripple-host")) return;
+          el.classList.add("ripple-host");
+          el.addEventListener("pointerdown", (e) => {
+            const rect = el.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            const r = document.createElement("span");
+            r.className = "ripple";
+            r.style.width = r.style.height = size + "px";
+            r.style.left = x + "px";
+            r.style.top = y + "px";
+            el.appendChild(r);
+            r.addEventListener("animationend", () => r.remove());
+          });
+        });
+      }
+
+      /* =========================== 超出回弹（MIUI 拉伸） ===========================
+         安卓 WebView 默认没有「越界回弹」（Chrome 只在根滚动容器上做，而这里是内层
+         滚动容器）。这里在手指拖动越过滚动边界时，给 .content 加一个
+         「一半位移 + 纵向拉伸」的变换（比例与 Android 12 的 StretchEffect 一致，
+         视觉上就是 MIUI/HyperOS 那种把内容拽出来再弹回去的手感），松手后按弹簧曲线弹回。
+
+         只用 passive 监听读取触点、不 preventDefault：正常滚动依然在合成器快路径上，
+         而越界时原生滚动本来就无处可去，所以两者不会打架。 */
+      /* 关掉回弹设置时要能立刻把已经拉出去的那一截收回来（由设置开关调用） */
+      let resetOverscrollStretch = () => {};
+
+      function enableOverscrollStretch() {
+        const el = $(".content");
+        if (!el) return;
+        if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+        const CAP = 0.55; // 拉伸量上限（容器高度的比例，橡皮筋的渐近值）
+        const MOVE = 0.5; // 位移占拉伸量的比例，另一半来自 scaleY 的拉伸
+        const EDGE = 2; // 边界容差：scrollTop 是小数，而 scrollHeight/clientHeight 是取整的
+        const SPRING = "transform .5s var(--spring)";
+
+        let lastX = 0,
+          lastY = 0,
+          mode = "", // "" | "top" | "bottom"
+          over = 0, // 已累计的越界量（未阻尼）
+          active = false,
+          settleTimer = 0;
+
+        // 橡皮筋：起始接近 1:1，越拉越沉
+        const damp = (raw) => {
+          const cap = (el.clientHeight || 1) * CAP;
+          return (raw * cap) / (cap + raw);
+        };
+        const paint = (d, atTop) => {
+          const h = el.clientHeight || 1;
+          el.style.transformOrigin = atTop ? "50% 0%" : "50% 100%";
+          el.style.transform =
+            `translate3d(0,${((atTop ? d : -d) * MOVE).toFixed(2)}px,0) ` +
+            `scaleY(${(1 + d / h).toFixed(5)})`;
+        };
+        const reset = () => {
+          active = false;
+          mode = "";
+          over = 0;
+          if (!el.style.transform) return;
+          clearTimeout(settleTimer);
+          el.style.transition = SPRING;
+          el.style.transform = "";
+          // 回弹结束后收掉临时属性，避免长期占着一个合成层
+          settleTimer = setTimeout(() => {
+            el.style.transition = "";
+            el.style.willChange = "";
+          }, 700);
+        };
+        resetOverscrollStretch = reset; // 供设置开关在关闭时立即收回
+
+        el.addEventListener(
+          "touchstart",
+          (e) => {
+            // 用户在设置里关掉了超出回弹，就不介入，交回给原生滚动
+            if (settings.overscroll === false) return;
+            if (e.touches.length !== 1) return reset();
+            clearTimeout(settleTimer);
+            el.style.transition = "";
+            el.style.willChange = "transform";
+            lastX = e.touches[0].clientX;
+            lastY = e.touches[0].clientY;
+            mode = "";
+            over = 0;
+            active = true;
+          },
+          { passive: true },
+        );
+
+        el.addEventListener(
+          "touchmove",
+          (e) => {
+            if (!active) return;
+            if (e.touches.length !== 1) return reset();
+            const t = e.touches[0];
+            const dy = t.clientY - lastY;
+            const dx = t.clientX - lastX;
+            // 只在「已经贴到边界、还继续往边界外拖」时才累计，且只累计越界之后的手势增量。
+            // 不能用 scrollTop 的增量去反推越界量：合成器滚动的主线程读数是滞后的，
+            // 那样会把正常滚动误判成越界（实测会莫名多出一截拉伸）。
+            if (mode === "top") over = Math.max(0, over + dy);
+            else if (mode === "bottom") over = Math.max(0, over - dy);
+            else if (Math.abs(dy) > Math.abs(dx)) {
+              if (dy > 0 && el.scrollTop <= 0) {
+                mode = "top";
+                over = dy;
+              } else if (
+                dy < 0 &&
+                el.scrollTop >= el.scrollHeight - el.clientHeight - EDGE
+              ) {
+                mode = "bottom";
+                over = -dy;
+              }
+            }
+            lastX = t.clientX;
+            lastY = t.clientY;
+            if (mode && over > 0) paint(damp(over), mode === "top");
+            else {
+              mode = "";
+              over = 0;
+              el.style.transform = "";
+            }
+          },
+          { passive: true },
+        );
+
+        el.addEventListener("touchend", reset, { passive: true });
+        el.addEventListener("touchcancel", reset, { passive: true });
+      }
+
+      /* =========================== 加载页动画 =========================== */
+      function runLoading() {
+        const app = $("#loading-bar-fill-app");
+        const font = $("#loading-bar-fill-font");
+        const ap = $("#loading-percent-app");
+        const fp = $("#loading-percent-font");
+        let a = 0,
+          f = 0;
+        const start = performance.now();
+        function frame(now) {
+          const t = Math.min(1, (now - start) / 1600);
+          a = Math.round(t * 100);
+          // 字体加载稍慢，制造 Miuix 的双条进度感
+          f = Math.min(100, Math.round(Math.max(0, (t - 0.15) / 0.85) * 100));
+          app.style.width = a + "%";
+          font.style.width = f + "%";
+          ap.textContent = a + "%";
+          fp.textContent = f + "%";
+          if (t < 1) {
+            requestAnimationFrame(frame);
+          } else {
+            finishLoading();
+          }
+        }
+        requestAnimationFrame(frame);
+      }
+      function finishLoading() {
+        const root = $("#loading");
+        root.classList.add("hidden");
+        setTimeout(() => {
+          if (root.parentNode) root.parentNode.removeChild(root);
+        }, 450);
+      }
+
+      /* =========================== 关于页 =========================== */
+      const ABOUT_VERSION = "v1.0.0 (1)"; // 网页版的固定文案；App 里用原生返回的真实版本
+      function aboutVersion() {
+        const b = window.MiuixBridge;
+        if (b && typeof b.appVersion === "function") {
+          try {
+            const v = b.appVersion();
+            if (v) return v;
+          } catch {}
+        }
+        return ABOUT_VERSION;
+      }
+
+      const ABOUT_TEXTS = {
+        miuix: {
+          title: "设计参考",
+          body:
+            "界面与动效参考了 MiuiX for Compose 的设计语言：\n\n" +
+            "· 圆角分组卡片与设置项\n" +
+            "· 弹簧曲线（folmeSpring 手感）\n" +
+            "· 拖到边界时的拉伸回弹\n" +
+            "· 强调色跟随主题\n\n" +
+            "MiuiX for Compose\n" +
+            "github.com/compose-miuix-ui/miuix",
+        },
+        license: {
+          title: "开源许可",
+          body:
+            "本应用以 Apache License 2.0 授权发布。\n\n" +
+            "在遵守该许可证的前提下，你可以自由使用、修改与分发。\n\n" +
+            "许可证全文：\nwww.apache.org/licenses/LICENSE-2.0\n\n" +
+            "除非适用法律要求或书面同意，软件按“原样”分发，" +
+            "不附带任何明示或暗示的担保。",
+        },
+        third: {
+          title: "第三方许可",
+          body:
+            "· MiuiX for Compose — Apache-2.0\n" +
+            "  界面组件与设计规范\n\n" +
+            "· Material Symbols — Apache-2.0\n" +
+            "  图标字体（已内置，离线可用）\n\n" +
+            "· Inter — SIL Open Font License 1.1\n" +
+            "  数字与西文字体（已内置）",
+        },
+      };
+
+      let aboutOpen = false;
+
+      /** 告诉原生当前是否有全屏浮层：有的话系统返回键应先关浮层而不是退出应用 */
+      function setNativeOverlay(open) {
+        const b = window.MiuixBridge;
+        if (!b || typeof b.setOverlay !== "function") return;
+        try {
+          b.setOverlay(!!open);
+        } catch {}
+      }
+
+      /* 外部链接统一入口：App 里交给原生用系统浏览器打开（在 WebView 内直接导航会“回不来”），
+         浏览器里开新标签页。关于页的所有链接都走这里。 */
+      function openExternal(url) {
+        if (!url) return;
+        const b = window.MiuixBridge;
+        if (b && typeof b.openUrl === "function") {
+          try {
+            b.openUrl(url);
+            return;
+          } catch {}
+        }
+        window.open(url, "_blank", "noopener");
+      }
+
+      function openAbout() {
+        const el = $("#aboutPage");
+        if (!el) return;
+        const v = aboutVersion();
+        $("#aboutVer").textContent = v;
+        const row = $("#aboutVerRow");
+        if (row) row.textContent = v;
+        el.classList.add("show");
+        el.setAttribute("aria-hidden", "false");
+        aboutOpen = true;
+        setNativeOverlay(true);
+        setSceneOut(true);
+      }
+
+      function closeAbout() {
+        const el = $("#aboutPage");
+        if (!el || !aboutOpen) return;
+        el.classList.remove("show");
+        el.setAttribute("aria-hidden", "true");
+        aboutOpen = false;
+        setNativeOverlay(false);
+        setSceneOut(false);
+      }
+
+      /* 底层应用场景：收圆角 + 变暗（MiuiX push 转场里的 Corner Clip / Dim） */
+      function setSceneOut(on) {
+        const app = $("#app");
+        if (app) app.classList.toggle("scene-out", !!on);
+        const dim = $("#aboutDim");
+        if (dim) dim.classList.toggle("show", !!on);
+      }
+
+      function showAboutModal(key) {
+        const t = ABOUT_TEXTS[key];
+        if (!t) return;
+        $("#aboutModalTitle").textContent = t.title;
+        $("#aboutModalBody").textContent = t.body;
+        $("#aboutModal").classList.add("show");
+      }
+
+      function closeAboutModal() {
+        $("#aboutModal")?.classList.remove("show");
+      }
+
+      /* 原生（系统返回键）会调它：先关弹窗，再关浮层 */
+      window.__miuixCloseOverlay = function () {
+        if ($("#aboutModal")?.classList.contains("show")) closeAboutModal();
+        else closeAbout();
+      };
+
+      function bindAbout() {
+        $("#aboutEntry")?.addEventListener("click", openAbout);
+        $("#aboutBack")?.addEventListener("click", closeAbout);
+        $("#aboutModalClose")?.addEventListener("click", closeAboutModal);
+        // 点遮罩空白处也可以关掉弹窗
+        $("#aboutModal")?.addEventListener("click", (e) => {
+          if (e.target === $("#aboutModal")) closeAboutModal();
+        });
+        $$(".about-item[data-about]").forEach((el) =>
+          el.addEventListener("click", () => showAboutModal(el.dataset.about)),
+        );
+        // 外链行：点击跳转到对应网站（我的 GitHub / 开源组件仓库）
+        $$(".about-item[data-link]").forEach((el) =>
+          el.addEventListener("click", () => openExternal(el.dataset.link)),
+        );
+        // 电脑上的 Esc：先关弹窗，再关浮层
+        document.addEventListener("keydown", (e) => {
+          if (e.key !== "Escape") return;
+          if ($("#aboutModal")?.classList.contains("show")) closeAboutModal();
+          else closeAbout();
+        });
+        const v = aboutVersion();
+        const entry = $("#aboutEntryVer");
+        if (entry) entry.textContent = v;
+        const row = $("#aboutVerRow");
+        if (row) row.textContent = v;
+        bindAboutSwipeBack();
+      }
+
+      /* 右滑返回（对应 MiuiX 的 Enable Swipe Back）：整页 + 底层应用视差一起跟手，
+         松手看拖了多远——超过 30% 屏宽就关掉，否则弹簧弹回 */
+      function bindAboutSwipeBack() {
+        const el = $("#aboutPage");
+        const dim = $("#aboutDim");
+        const app = $("#app");
+        if (!el) return;
+        let x0 = 0,
+          y0 = 0,
+          dx = 0,
+          dragging = false;
+
+        el.addEventListener(
+          "touchstart",
+          (e) => {
+            if (!aboutOpen || e.touches.length !== 1) return;
+            if ($("#aboutModal")?.classList.contains("show")) return;
+            x0 = e.touches[0].clientX;
+            y0 = e.touches[0].clientY;
+            dx = 0;
+            dragging = false;
+          },
+          { passive: true },
+        );
+
+        el.addEventListener(
+          "touchmove",
+          (e) => {
+            if (!aboutOpen || e.touches.length !== 1) return;
+            const t = e.touches[0];
+            const mx = t.clientX - x0;
+            const my = t.clientY - y0;
+            if (!dragging) {
+              // 只认「明显往右」的手势，竖直滑动仍然交给页面滚动
+              if (mx < 12 || Math.abs(my) > Math.abs(mx)) return;
+              dragging = true;
+              el.style.transition = "none";
+              // 跟手期间遮罩与底层视差都要即时响应，不能走过渡
+              if (dim) dim.style.transition = "none";
+              if (app) app.style.transition = "none";
+            }
+            dx = Math.max(0, mx);
+            const p = Math.min(1, dx / (el.clientWidth || 1));
+            el.style.transform = "translateX(" + dx + "px)";
+            if (dim) dim.style.opacity = String(0.5 * (1 - p));
+            // 底层应用同步反推：关得越多，视差越接近 -25%
+            if (app) app.style.transform = "translateX(" + -25 * (1 - p) + "%)";
+          },
+          { passive: true },
+        );
+
+        const settle = () => {
+          if (!dragging) return;
+          dragging = false;
+          const closing = dx > (el.clientWidth || 0) * 0.3;
+          el.style.transform = "";
+          if (dim) {
+            dim.style.transition = "";
+            dim.style.opacity = "";
+          }
+          if (app) {
+            app.style.transition = "";
+            app.style.transform = "";
+          }
+          if (closing) {
+            // 关页：交给 CSS 的 500ms 转场，与点返回键完全一致
+            el.style.transition = "";
+            closeAbout();
+          } else {
+            // 弹回：拖拽松手用更短的弹簧，比 500ms tween 跟手
+            el.style.transition = "transform 0.32s var(--spring)";
+            setTimeout(() => {
+              el.style.transition = "";
+            }, 360);
+          }
+        };
+        el.addEventListener("touchend", settle, { passive: true });
+        el.addEventListener("touchcancel", settle, { passive: true });
+      }
+
+      /* =========================== 初始化 =========================== */
+      function init() {
+        applyTheme();
+        applyAccent();
+        renderColorRow();
+        renderToneRows();
+        bindToneUpload();
+        bindAbout();
+        bindSteppers();
+        bindSwitches();
+        bindBackground();
+        initBackground();
+        bindMini();
+        bindTodos();
+        $("#exportBtn").addEventListener("click", exportData);
+        enableRipples();
+        enableOverscrollStretch();
+        showMini(settings.miniTimer);
+        updateDots();
+        updateModeUI();
+        updateTime();
+        updateRing();
+        renderStats();
+        runLoading();
+        // 刚启动时网页总是「未开始」状态：把原生服务/通知栏也拉回一致
+        if (!running) nativeTimer("idle");
+      }
+      init();
+    </script>
+  </body>
+</html>

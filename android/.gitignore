@@ -1,0 +1,13 @@
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 由 syncWebAssets 任务从 ../index.html 生成，不纳入版本库
+app/src/main/assets/index.html
