@@ -1,0 +1,16 @@
+# Gradle / 构建产物
+.gradle/
+build/
+.kotlin/
+local.properties
+.idea/
+*.iml
+.DS_Store
+
+# iOS：xcodegen 生成物与本地构建目录
+iosApp/*.xcodeproj/
+iosApp/build/
+iosApp/xcuserdata/
+xcuserdata/
+*.ipa
+*.dmg

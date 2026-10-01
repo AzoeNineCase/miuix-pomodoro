@@ -8,3 +8,6 @@ Thumbs.db
 # 临时文件
 *.tmp
 .tmp-*
+
+# miuix 官方各平台预览包（本地参考资料，不入库）
+/miuix/
