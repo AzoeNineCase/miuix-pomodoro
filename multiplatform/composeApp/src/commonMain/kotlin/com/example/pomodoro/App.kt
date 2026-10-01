@@ -2,6 +2,7 @@ package com.example.pomodoro
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -28,8 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +47,7 @@ import com.example.pomodoro.ui.AboutPage
 import com.example.pomodoro.ui.IconBtn
 import com.example.pomodoro.ui.MiniTimerOverlay
 import com.example.pomodoro.ui.SettingsPage
+import com.example.pomodoro.ui.SplashScreen
 import com.example.pomodoro.ui.Symbol
 import com.example.pomodoro.ui.StatsPage
 import com.example.pomodoro.ui.TimerPage
@@ -55,7 +59,7 @@ import kotlinx.coroutines.delay
 private val NavEase = CubicBezierEasing(0.4f, 1.2f, 0.95f, 0.97f)
 
 @Composable
-fun App(state: State, isDark: Boolean = isSystemInDarkTheme()) {
+fun App(state: State, isDark: Boolean = isSystemInDarkTheme(), showSplash: Boolean = true) {
     val scope = rememberCoroutineScope()
     PomodoroTheme(state.theme, isDark, state.accent) {
         val c = AppTheme.colors
@@ -67,6 +71,19 @@ fun App(state: State, isDark: Boolean = isSystemInDarkTheme()) {
                 delay(2200)
                 state.toast = null
             }
+        }
+
+        // 启动页：进度条走满 → 淡出（对应网页 #loading 的两条进度条与 0.4s 透明度过渡）
+        var splashVisible by remember { mutableStateOf(showSplash) }
+        val splashProgress = remember { Animatable(if (showSplash) 0f else 1f) }
+        val splashAlpha = remember { Animatable(if (showSplash) 1f else 0f) }
+        LaunchedEffect(Unit) {
+            if (!showSplash) return@LaunchedEffect
+            splashProgress.animateTo(0.72f, tween(420, easing = LinearEasing))
+            splashProgress.animateTo(1f, tween(420, easing = LinearEasing))
+            delay(120)
+            splashAlpha.animateTo(0f, tween(400, easing = NavEase))
+            splashVisible = false
         }
 
         BoxWithConstraints(Modifier.fillMaxSize().background(c.background)) {
@@ -117,6 +134,14 @@ fun App(state: State, isDark: Boolean = isSystemInDarkTheme()) {
             }
 
             if (state.miniVisible) MiniTimerOverlay(state)
+
+            if (splashVisible) {
+                SplashScreen(
+                    appProgress = splashProgress.value,
+                    fontProgress = splashProgress.value,
+                    alpha = splashAlpha.value,
+                )
+            }
         }
     }
 }

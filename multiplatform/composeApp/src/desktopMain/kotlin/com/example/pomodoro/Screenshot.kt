@@ -47,7 +47,7 @@ fun main(args: Array<String>) {
         val state = State(NoOpStorage)
         state.page = page
         state.theme = theme
-        renderToFile(File(outDir, "$name.png"), width, height, density) { App(state, theme != "light") }
+        renderToFile(File(outDir, "$name.png"), width, height, density) { App(state, theme != "light", showSplash = false) }
         println("saved $name.png")
     }
 }
