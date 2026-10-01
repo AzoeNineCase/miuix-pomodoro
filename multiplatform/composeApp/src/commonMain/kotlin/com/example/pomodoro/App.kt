@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.pomodoro.ui.AboutPage
 import com.example.pomodoro.ui.IconBtn
+import com.example.pomodoro.ui.MiniTimerOverlay
 import com.example.pomodoro.ui.SettingsPage
 import com.example.pomodoro.ui.Symbol
 import com.example.pomodoro.ui.StatsPage
@@ -114,6 +115,8 @@ fun App(state: State, isDark: Boolean = isSystemInDarkTheme()) {
                     contentAlignment = Alignment.BottomCenter,
                 ) { ToastBar(toast.text, toast.icon) }
             }
+
+            if (state.miniVisible) MiniTimerOverlay(state)
         }
     }
 }

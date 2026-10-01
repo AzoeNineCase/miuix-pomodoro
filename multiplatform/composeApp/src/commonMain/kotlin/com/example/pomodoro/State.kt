@@ -149,6 +149,14 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
     var toast by mutableStateOf<ToastMsg?>(null)
     var taskName by mutableStateOf(storage.loadString("taskName", ""))
 
+    /** 悬浮迷你计时器的拖动偏移（px）。对应网页 .mini-timer 的拖拽位置（clamp 在视口内） */
+    var miniDx by mutableStateOf(0f)
+    var miniDy by mutableStateOf(0f)
+
+    /** 迷你计时器是否应当显示（对应网页 updateMiniTimer：开关打开且本轮已开始） */
+    val miniVisible: Boolean
+        get() = miniTimer && (running || secondsLeft < totalSeconds)
+
     init {
         loadDays()
         loadTodos()
