@@ -4,6 +4,8 @@
 
 一个 MIUI / HyperOS（**Miuix**）风格的番茄钟 —— 毛玻璃、弹簧动效、MIUI 拉伸回弹。
 
+> 🌐 **在线预览**：<https://simlalsy.github.io/miuix-pomodoro/>（由 GitHub Pages 托管，打开即用）
+
 - **网页版** —— 单个零依赖的 `index.html`，打开即用。
 - **安卓版** —— 用 WebView 原样运行同一份网页（像素级一致），并由原生前台服务兜底：息屏/锁屏也能准确计时、常驻通知栏倒计时、原生提示音（含自定义上传）等。
 

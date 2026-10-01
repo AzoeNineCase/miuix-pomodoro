@@ -4,6 +4,8 @@ English | [简体中文](README.md)
 
 A Pomodoro timer dressed in the MIUI / HyperOS (**Miuix**) design language — frosted glass, springy animations and MIUI-style overscroll stretch.
 
+> 🌐 **Live demo**: <https://simlalsy.github.io/miuix-pomodoro/> (hosted on GitHub Pages)
+
 - **Web** — a single, dependency-free `index.html`: open it and it just works.
 - **Android** — a WebView shell that runs the very same page pixel-for-pixel, plus a native foreground service so the timer keeps counting with the screen off, a persistent notification, native tones and more.
 
