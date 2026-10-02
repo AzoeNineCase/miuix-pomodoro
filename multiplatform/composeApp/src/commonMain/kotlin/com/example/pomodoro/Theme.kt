@@ -27,6 +27,8 @@ data class AppColors(
 
     val primary: Color,
     val onPrimary: Color,
+    /** --miuix-primary-container：柱状图渐变末端（默认强调色为静态值，自定义强调色是 shade(accent,18)） */
+    val primaryContainer: Color,
     /** --miuix-soft：强调色的半透明容器（图标底、选中态） */
     val soft: Color,
 
@@ -54,9 +56,17 @@ data class AppColors(
 /** 网页把强调色写进内联样式：primary = accent，soft = accent@14%（浅）/22%（深） */
 fun accentColors(accent: Color, dark: Boolean) = accent to accent.copy(alpha = if (dark) 0.22f else 0.14f)
 
+/** 与网页 shade(hex, pct) 一致：向白色混合 pct% */
+fun shade(c: Color, pct: Float): Color {
+    val p = kotlin.math.abs(pct) / 100f
+    val t = if (pct < 0f) 0f else 1f
+    fun mix(v: Float) = (t - v) * p + v
+    return Color(mix(c.red), mix(c.green), mix(c.blue), c.alpha)
+}
+
 private val LightColors = AppColors(
     dark = false, aurora = false,
-    primary = Color(0xFF3482FF), onPrimary = Color.White, soft = Color(0x1F3482FF),
+    primary = Color(0xFF3482FF), onPrimary = Color.White, primaryContainer = Color(0xFF5D9BFF), soft = Color(0x1F3482FF),
     background = Color(0xFFF4F5F7), surface = Color.White, container = Color.White,
     containerHigh = Color(0xFFECEDF0), containerHighest = Color(0xFFE4E5E8),
     onSurface = Color(0xFF0F0F0F), variant = Color(0xFF959595),
@@ -68,7 +78,7 @@ private val LightColors = AppColors(
 
 private val DarkColors = AppColors(
     dark = true, aurora = false,
-    primary = Color(0xFF277AF7), onPrimary = Color.White, soft = Color(0x33277AF7),
+    primary = Color(0xFF277AF7), onPrimary = Color.White, primaryContainer = Color(0xFF338FE4), soft = Color(0x33277AF7),
     background = Color(0xFF1A1A1C), surface = Color(0xFF242426), container = Color(0xFF2A2A2D),
     containerHigh = Color(0xFF323236), containerHighest = Color(0xFF3A3A3F),
     onSurface = Color(0xFFE6E6E6), variant = Color(0xFF8C93B0),
@@ -80,7 +90,7 @@ private val DarkColors = AppColors(
 
 private val AuroraColors = AppColors(
     dark = true, aurora = true,
-    primary = Color(0xFF8B7BFF), onPrimary = Color.White, soft = Color(0x388B7BFF),
+    primary = Color(0xFF8B7BFF), onPrimary = Color.White, primaryContainer = Color(0xFF6C5CE7), soft = Color(0x388B7BFF),
     background = Color(0xFF0B0D1F), surface = Color(0x14FFFFFF), container = Color(0x12FFFFFF),
     containerHigh = Color(0x1FFFFFFF), containerHighest = Color(0x29FFFFFF),
     onSurface = Color(0xFFEEF0FF), variant = Color(0xFFAAB3E2),
@@ -99,7 +109,12 @@ fun appColors(theme: String, systemDark: Boolean, accent: String, bgActive: Bool
     }
     val acc = accentColorOrNull(accent)
     val (p, soft) = if (acc != null) accentColors(acc, base.dark) else base.primary to base.soft
-    return base.copy(primary = p, soft = soft, bgActive = bgActive)
+    return base.copy(
+        primary = p,
+        soft = soft,
+        primaryContainer = if (acc != null) shade(acc, 18f) else base.primaryContainer,
+        bgActive = bgActive,
+    )
 }
 
 fun accentColorOrNull(hex: String): Color? = runCatching {
@@ -189,3 +204,6 @@ internal fun normalLine(size: Int): TextUnit = when (size) {
     64 -> 81
     else -> kotlin.math.round(size * 1.266).toInt()
 }.sp
+
+/** 纯拉丁/数字文本的行盒：Inter (1984+494)/2048 = 1.20996 ≈ 1.21 */
+internal fun latinLine(size: Int): TextUnit = kotlin.math.round(size * 1.20996f).sp

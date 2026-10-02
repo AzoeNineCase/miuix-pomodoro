@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -73,6 +74,7 @@ import com.example.pomodoro.normalLine
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlinx.coroutines.launch
+import kotlinx.datetime.LocalDate
 
 private val EaseInOut: Easing = Easing { f -> (1f - cos(f * PI).toFloat()) / 2f }
 
@@ -98,9 +100,8 @@ fun TimerPage(state: State, compact: Boolean = false) {
 private fun TimerCard(state: State) {
     val scope = rememberCoroutineScope()
     CardBox(padding = 0.dp) {
-        // 网页 .timer-wrap 是 border-box：1px 边框也占内容空间（34+1 / 30+1），否则整块内容会高 1px
         Column(
-            Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 35.dp, bottom = 31.dp),
+            Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 34.dp, bottom = 30.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             TimerRing(state, 300.dp)
@@ -307,6 +308,7 @@ private fun WeekChart(state: State) {
     val c = AppTheme.colors
     val week = state.weekStats
     val maxSessions = (week.maxOfOrNull { it.second.sessions } ?: 0).coerceAtLeast(1)
+    // 网页 #weekChart：flex 底对齐、高 120、列 gap 8；列 = [计数][柱][星期] gap 6、justify-end
     Row(
         Modifier.fillMaxWidth().height(120.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -314,23 +316,40 @@ private fun WeekChart(state: State) {
     ) {
         week.forEach { (key, stat) ->
             val fraction = stat.sessions.toFloat() / maxSessions
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
+            // 柱：height = max(6, val/max·100)% × 120；宽 18、全圆角 9、180° 渐变、35% 光晕（σ6）
+            val barH = (120f * fraction).coerceAtLeast(120f * 0.06f)
+            Column(
+                Modifier.weight(1f).fillMaxHeight(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Bottom,
+            ) {
                 if (stat.sessions > 0) {
-                    Text("${stat.sessions}", color = c.variant, fontFamily = AppTheme.font, fontSize = 11.sp, lineHeight = normalLine(11), fontWeight = W.semi)
-                    Spacer(Modifier.height(4.dp))
+                    Text("${stat.sessions}", color = c.primary, fontFamily = AppTheme.font, fontSize = 11.sp, lineHeight = normalLine(11), fontWeight = W.bold)
+                    Spacer(Modifier.height(6.dp))
                 }
-                Box(
-                    Modifier
-                        .fillMaxWidth()
-                        .height((92 * fraction.coerceAtLeast(0.06f)).dp)
-                        .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                        .background(if (stat.sessions > 0) c.primary.copy(alpha = 0.85f) else c.containerHigh),
-                )
+                Box(Modifier.width(18.dp).height(barH.dp)) {
+                    Box(
+                        Modifier.matchParentSize().blur(6.dp, BlurredEdgeTreatment.Unbounded)
+                            .background(c.primary.copy(alpha = 0.35f), RoundedCornerShape(9.dp)),
+                    )
+                    Box(
+                        Modifier.matchParentSize()
+                            .background(Brush.verticalGradient(listOf(c.primary, c.primaryContainer)), RoundedCornerShape(9.dp)),
+                    )
+                }
                 Spacer(Modifier.height(6.dp))
-                Text(key.substringAfterLast('-'), color = c.variant, fontFamily = AppTheme.font, fontSize = 11.sp, lineHeight = normalLine(11), fontWeight = W.semi)
+                Text(weekdayCn(key), color = c.variant, fontFamily = AppTheme.font, fontSize = 11.sp, lineHeight = normalLine(11), fontWeight = W.semi)
             }
         }
     }
+}
+
+/** 网页星日标签：["日","一",...][d.getDay()]（周一是 1 → %7） */
+private fun weekdayCn(key: String): String {
+    val p = key.split("-")
+    if (p.size != 3) return ""
+    val date = runCatching { LocalDate(p[0].toInt(), p[1].toInt(), p[2].toInt()) }.getOrNull() ?: return ""
+    return listOf("日", "一", "二", "三", "四", "五", "六")[(date.dayOfWeek.ordinal + 1) % 7]
 }
 
 /* ============================================================

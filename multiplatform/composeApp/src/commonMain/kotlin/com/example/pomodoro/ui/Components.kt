@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.example.pomodoro.AppTheme
 import com.example.pomodoro.AppColors
 import com.example.pomodoro.W
+import com.example.pomodoro.latinLine
 import com.example.pomodoro.normalLine
 
 /* ============================================================
@@ -135,7 +136,8 @@ fun CardBox(
             // [data-bg-active]：卡片底色 52%、描边 70%（对应网页 .card）
             .background(glassDim(c.container, 0.52f))
             .border(1.dp, glassDim(c.divider, 0.70f), RoundedCornerShape(radius))
-            .padding(padding),
+            // 网页 .card 是 border-box：1px 边框占掉内边距（内容整体 +1）
+            .padding(padding + 1.dp),
         content = content,
     )
 }
@@ -384,10 +386,11 @@ fun StatCell(value: String, label: String, modifier: Modifier = Modifier) {
             // [data-bg-active]：.stat-cell 底色 52%
             .background(glassDim(c.surface, 0.52f))
             .border(1.dp, c.divider, RoundedCornerShape(16.dp))
-            .padding(horizontal = 18.dp, vertical = 20.dp),
+            // 网页 .stat-cell 是 border-box：1px 边框占掉内边距（内容从 +1 开始）
+            .padding(horizontal = 19.dp, vertical = 21.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(value, color = c.primary, fontFamily = AppTheme.font, fontSize = 28.sp, lineHeight = normalLine(28), fontWeight = W.extra)
+        Text(value, color = c.primary, fontFamily = AppTheme.font, fontSize = 28.sp, lineHeight = latinLine(28), fontWeight = W.extra)
         Text(label, color = c.variant, fontFamily = AppTheme.font, fontSize = 13.sp, lineHeight = normalLine(13), fontWeight = W.semi)
     }
 }
@@ -439,7 +442,8 @@ fun Chip(text: String, active: Boolean, onClick: () -> Unit) {
             .background(bg)
             .border(1.dp, if (active) Color.Transparent else c.divider, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 15.dp, vertical = 9.dp),
+            // 网页 .tone-chip border-box：1px 边框 + 9/15 内边距 → 内容从 10/16 开始
+            .padding(horizontal = 16.dp, vertical = 10.dp),
     ) { Text(text, color = fg, fontFamily = AppTheme.font, fontSize = 13.sp, lineHeight = normalLine(13), fontWeight = W.semi) }
 }
 

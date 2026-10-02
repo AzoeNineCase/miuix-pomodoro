@@ -377,7 +377,8 @@ private fun Topbar(state: State) {
             Modifier
                 .fillMaxWidth()
                 .background(c.background.copy(alpha = 0.52f))
-                .padding(start = 28.dp, end = 28.dp, top = 22.dp, bottom = 14.dp),
+                // 网页 .topbar 是 border-box：1px border-bottom 吃掉底部内边距 → 14-1=13（否则下方内容整体低 1px）
+                .padding(start = 28.dp, end = 28.dp, top = 22.dp, bottom = 13.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
