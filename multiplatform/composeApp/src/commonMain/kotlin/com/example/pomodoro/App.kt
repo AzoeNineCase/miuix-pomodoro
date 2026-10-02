@@ -52,11 +52,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -64,6 +67,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.compositionLocalOf
@@ -79,6 +85,7 @@ import com.example.pomodoro.ui.ToastBar
 import com.example.pomodoro.ui.TodosPage
 import kotlinx.coroutines.delay
 import kotlin.math.floor
+import kotlin.math.roundToInt
 
 /** Miuix NavTransitions.MiuixDefault 的近似曲线（与网页 --nav-ease 同源） */
 private val NavEase = CubicBezierEasing(0.4f, 1.2f, 0.95f, 0.97f)
@@ -117,19 +124,19 @@ fun App(state: State, isDark: Boolean = isSystemInDarkTheme(), showSplash: Boole
         BoxWithConstraints(Modifier.fillMaxSize().background(c.background)) {
             val compact = maxWidth < 760.dp
 
-            // 极光场：根部算好位置与相位；玻璃容器（卡片/顶栏/侧栏）用它重绘背层模拟 saturate
+            // 极光场：根部算好位置/相位并预先光栅化成屏幕空间位图；
+            // 玻璃容器（卡片/顶栏/侧栏）用它对齐绘制背层模拟 backdrop-filter saturate
             val auroraSpec = if (c.aurora) {
                 val (s, tx, ty) = rememberAuroraDrift()
                 val density = LocalDensity.current
-                val lw = maxWidth * 1.8f
-                val lh = maxHeight * 1.8f
-                AuroraFieldSpec(
-                    wPx = with(density) { lw.toPx() },
-                    hPx = with(density) { lh.toPx() },
-                    s = s,
-                    originX = with(density) { (lw * tx).toPx() },
-                    originY = with(density) { (lh * ty).toPx() },
-                )
+                val screenW = with(density) { maxWidth.toPx() }.roundToInt()
+                val screenH = with(density) { maxHeight.toPx() }.roundToInt()
+                val lwPx = with(density) { (maxWidth * 1.8f).toPx() }
+                val lhPx = with(density) { (maxHeight * 1.8f).toPx() }
+                val image = remember(s, screenW, screenH) {
+                    buildAuroraImage(screenW, screenH, lwPx, lhPx, s, lwPx * tx, lhPx * ty)
+                }
+                AuroraFieldSpec(image)
             } else null
             CompositionLocalProvider(LocalAuroraField provides auroraSpec) {
             if (auroraSpec != null) AuroraBackground(auroraSpec)
@@ -212,33 +219,17 @@ private fun rememberAuroraDrift(): Triple<Float, Float, Float> {
 }
 
 /**
- * 极光背景描述：整层 180% 画布（含 4 个椭圆光斑 + 135° 线性底）在根坐标系里的位置与漂移。
- * 玻璃容器用它把「背层」重绘一遍（配 saturate 色彩矩阵）来模拟网页 backdrop-filter；
- * Compose 没有真正的背景采样，但极光场是纯函数，可以精确重画。
+ * 极光背景描述：屏幕空间的极光场位图（已把 180% 画布按漂移位置画好）。
+ * 玻璃容器用它做 backdrop-filter 模拟：把位图按容器位置对齐 + saturate 色彩矩阵，
+ * 相当于「先合成背层、再整层过滤」——与 CSS backdrop-filter 语义一致
+ * （逐笔过滤会有 alpha 合成顺序差异）。
  */
-class AuroraFieldSpec(
-    /** 画布尺寸（px） */
-    val wPx: Float,
-    val hPx: Float,
-    /** 漂移相位 s（0→1→0） */
-    val s: Float,
-    /** 画布左上角在根坐标系里的位置（px） */
-    val originX: Float,
-    val originY: Float,
-) {
-    /** 在 [origin]（容器左上角在根坐标系的位置）所在的 DrawScope 里重绘整层 */
-    fun DrawScope.drawIn(origin: Offset, saturation: Float) {
-        val filter = if (saturation == 1f) null else ColorFilter.colorMatrix(saturateMatrix(saturation))
-        withTransform({ translate(originX - origin.x, originY - origin.y) }) {
-            drawAuroraField(wPx, hPx, s, filter)
-        }
-    }
-}
+class AuroraFieldSpec(val image: ImageBitmap)
 
 val LocalAuroraField = compositionLocalOf<AuroraFieldSpec?> { null }
 
 /**
- * 玻璃容器背层模拟：容器自身在根坐标系的位置 + 重绘极光场（saturate 矩阵），
+ * 玻璃容器背层模拟：容器自身在根坐标系的位置 + 对齐绘制场位图（saturate 矩阵），
  * 对应网页 backdrop-filter 的 saturate(N)（模糊对低频渐变影响极小，忽略）。
  * 仅在极光主题且根部提供了 [LocalAuroraField] 时生效。
  */
@@ -252,7 +243,12 @@ internal fun Modifier.auroraBackdrop(saturation: Float): Modifier {
         .onGloballyPositioned { posInRoot = it.positionInRoot() }
         .drawBehind {
             if (posInRoot.isSpecified) {
-                with(spec) { drawIn(posInRoot, saturation) }
+                drawImage(
+                    spec.image,
+                    dstOffset = IntOffset((-posInRoot.x).roundToInt(), (-posInRoot.y).roundToInt()),
+                    colorFilter = if (saturation == 1f) null
+                    else ColorFilter.colorMatrix(saturateMatrix(saturation)),
+                )
             }
         }
 }
@@ -315,13 +311,33 @@ private fun DrawScope.drawAuroraField(wPx: Float, hPx: Float, s: Float, colorFil
 }
 
 /**
+ * 把极光场按漂移位置光栅化成屏幕空间位图（密度 1：内部坐标均为 px，与 dp 无关）。
+ * 位图在 composable 里按相位 remember，漂移每跨一步（约 0.2s）重建一次。
+ */
+private fun buildAuroraImage(
+    w: Int,
+    h: Int,
+    wPx: Float,
+    hPx: Float,
+    s: Float,
+    originX: Float,
+    originY: Float,
+): ImageBitmap {
+    val image = ImageBitmap(w, h)
+    CanvasDrawScope().draw(Density(1f), LayoutDirection.Ltr, Canvas(image), Size(w.toFloat(), h.toFloat())) {
+        translate(originX, originY) { drawAuroraField(wPx, hPx, s) }
+    }
+    return image
+}
+
+/**
  * 极光主题背景层：对应网页 `.aurora-bg > i`（180% 画布 + 漂移），外层裁切出视口。
  * 注意：requiredSize 超出约束时会把内容在约束框内【居中】（偏移 −(lw−w)/2, −(lh−h)/2），
- * 而 CSS 的图层是左上锚定 —— 这里用左上锚定的 drawBehind 直接按 spec 画，天然对齐。
+ * 而 CSS 的图层是左上锚定 —— 这里直接画「已按漂移位置摆好」的屏幕空间位图，天然对齐。
  */
 @Composable
 private fun AuroraBackground(spec: AuroraFieldSpec) {
-    Box(Modifier.fillMaxSize().clipToBounds().drawBehind { with(spec) { drawIn(Offset.Zero, 1f) } })
+    Box(Modifier.fillMaxSize().clipToBounds().drawBehind { drawImage(spec.image) })
 }
 
 /**
