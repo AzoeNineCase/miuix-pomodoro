@@ -12,6 +12,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,13 +44,18 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -519,7 +526,7 @@ fun SettingsPage(state: State) {
 
         // 关于入口
         CardBox {
-            SettingRow("info", "关于", "版本 v1.0.0", showDivider = false) {
+            SettingRow("info", "关于", "版本 v1.0.0 (1)", showDivider = false) {
                 Box(Modifier.size(28.dp).clickable { state.showAbout = true }, contentAlignment = Alignment.Center) {
                     Symbol("chevron_right", 22.dp, c.variant.copy(alpha = 0.6f))
                 }
@@ -565,92 +572,132 @@ fun AboutPage(state: State, onClose: () -> Unit) {
     } else {
         listOf(Color(0xFFFFE3F1), Color(0xFFF0E7FD), Color(0xFFDCD7FA))
     }
-    Column(
-        Modifier
-            .fillMaxSize()
-            // 背景：linear-gradient(165deg, …)，42% 中间停靠点（与网页 .about 一致）
-            .drawBehind {
-                drawRect(
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        // 复刻网页 flex 布局：内容总高固定（卡片 172+348+116 + 间距 48），
+        // 主区 min-height 180、bottom padding 12；装不下时 logo（flex-shrink）被压缩
+        val cardsTotal = 172f + 348f + 116f + 3f * 16f
+        val avail = maxHeight.value - 34f - 44f - cardsTotal
+        val mainH = maxOf(180f, avail)
+        val logoH = minOf(96f, mainH - 12f - 88f).coerceAtLeast(48f)
+        Column(
+            Modifier
+                .fillMaxSize()
+                // 背景：linear-gradient(165deg, …)，42% 中间停靠点（与网页 .about 一致）
+                .drawBehind {
+                    // 梯度轴方向 (sin165°, -cos165°)≈(0.2588, 0.9659)，长度 = w·|dx| + h·|dy|，过中心
+                    val dx = 0.258819f
+                    val dy = 0.965926f
+                    val len = size.width * dx + size.height * dy
+                    val cx = size.width / 2f
+                    val cy = size.height / 2f
+                    drawRect(
+                        Brush.linearGradient(
+                            0f to bgColors[0], 0.42f to bgColors[1], 1f to bgColors[2],
+                            start = Offset(cx - dx * len / 2f, cy - dy * len / 2f),
+                            end = Offset(cx + dx * len / 2f, cy + dy * len / 2f),
+                        ),
+                    )
+                }
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Row(Modifier.fillMaxWidth().padding(start = 10.dp, top = 10.dp)) {
+                Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
+                    Symbol("arrow_back", 24.dp, fg)
+                }
+            }
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .height(mainH.dp)
+                    .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Box(Modifier.size(width = 96.dp, height = logoH.dp)) {
+                    // box-shadow: 0 14px 34px rgba(52,130,255,0.34)（σ=34/2=17px）
+                    Canvas(Modifier.fillMaxSize().offset(y = 14.dp).blur(17.dp, BlurredEdgeTreatment.Unbounded)) {
+                        drawRoundRect(Color(0x573482FF), cornerRadius = CornerRadius(28.dp.toPx()))
+                    }
+                    Box(
+                        Modifier.fillMaxSize().clip(RoundedCornerShape(28.dp)).background(Color(0xFF3482FF)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        // 网页 logo 是 SVG 路径：实心圆盘（逆时针）+ 指针多边形（顺时针）→ 非零环绕下指针区域被挖空
+                        Canvas(Modifier.size(58.dp)) {
+                            val s = size.width / 24f
+                            val path = Path().apply {
+                                fillType = PathFillType.NonZero
+                                val r = Rect(Offset(12f * s, 12f * s), 10f * s)
+                                arcTo(r, -90f, -270f, true)
+                                arcTo(r, 0f, -90f, false)
+                                moveTo(16.2f * s, 16.2f * s)
+                                lineTo(11f * s, 13.7f * s)
+                                lineTo(11f * s, 7f * s)
+                                lineTo(12.5f * s, 7f * s)
+                                lineTo(12.5f * s, 12.6f * s)
+                                close()
+                            }
+                            drawPath(path, Color.White)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(22.dp))
+                val nameBrush = run {
+                    // linear-gradient(100deg, …)：梯度轴过中心，长度 = w·sin+h·cos，58% 中间停靠点
+                    val density = LocalDensity.current
                     Brush.linearGradient(
-                        0f to bgColors[0], 0.42f to bgColors[1], 1f to bgColors[2],
-                        start = Offset.Zero,
-                        end = Offset(size.width * 0.259f, size.height * 0.966f),
+                        colorStops = arrayOf(
+                            0f to if (dark) Color(0xFFB9A6FF) else Color(0xFF4A2FB8),
+                            0.58f to if (dark) Color(0xFFE0A6FF) else Color(0xFFA24BD0),
+                            1f to if (dark) Color(0xFFFF9ECB) else Color(0xFFE0559A),
+                        ),
+                        start = with(density) { Offset((-2.08f).dp.toPx(), 11.8f.dp.toPx()) },
+                        end = with(density) { Offset(96.58f.dp.toPx(), 29.2f.dp.toPx()) },
+                    )
+                }
+                Text(
+                    "番茄钟",
+                    fontFamily = AppTheme.font,
+                    fontSize = 32.sp,
+                    lineHeight = normalLine(32),
+                    fontWeight = W.extra,
+                    letterSpacing = (-0.5).sp,
+                    style = TextStyle(brush = nameBrush),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text("v1.0.0 (1)", color = fg.copy(alpha = 0.5f), fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = W.semi)
+            }
+            Spacer(Modifier.height(16.dp))
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
+                AboutCard(
+                    dark,
+                    listOf(
+                        AboutRow("应用版本", "v1.0.0 (1)", AboutIcon.None),
+                        AboutRow("设计参考", "MiuiX", AboutIcon.Chevron),
+                        AboutRow("我的 GitHub", "@Simlalsy", AboutIcon.External),
+                    ),
+                )
+                Spacer(Modifier.height(16.dp))
+                AboutCard(
+                    dark,
+                    listOf(
+                        AboutRow("MiuiX for Compose", "compose-miuix-ui/miuix", AboutIcon.External),
+                        AboutRow("Material Symbols", "google/material-design-icons", AboutIcon.External),
+                        AboutRow("Inter", "rsms/inter", AboutIcon.External),
+                        AboutRow("Jetpack Compose", "androidx/androidx", AboutIcon.External),
+                        AboutRow("Kotlin", "JetBrains/kotlin", AboutIcon.External),
+                        AboutRow("Gradle", "gradle/gradle", AboutIcon.External),
+                    ),
+                )
+                Spacer(Modifier.height(16.dp))
+                AboutCard(
+                    dark,
+                    listOf(
+                        AboutRow("开源许可", "Apache-2.0", AboutIcon.Chevron),
+                        AboutRow("第三方许可", "", AboutIcon.Chevron),
                     ),
                 )
             }
-            .verticalScroll(rememberScrollState()),
-    ) {
-        Row(Modifier.fillMaxWidth().padding(start = 10.dp, top = 10.dp)) {
-            Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
-                Symbol("arrow_back", 24.dp, fg)
-            }
-        }
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, bottom = 12.dp)
-                .heightIn(min = 180.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Box(
-                Modifier.size(96.dp).clip(RoundedCornerShape(28.dp)).background(Color(0xFF3482FF)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Canvas(Modifier.size(58.dp)) {
-                    val sw = 4.dp.toPx()
-                    drawCircle(Color.White, radius = size.minDimension / 2 - sw / 2, style = Stroke(sw))
-                    val c0 = Offset(size.width / 2, size.height / 2)
-                    drawLine(Color.White, c0, Offset(c0.x, c0.y - size.height * 0.28f), strokeWidth = sw, cap = StrokeCap.Round)
-                    drawLine(Color.White, c0, Offset(c0.x + size.width * 0.2f, c0.y + size.height * 0.12f), strokeWidth = sw, cap = StrokeCap.Round)
-                }
-            }
-            Spacer(Modifier.height(22.dp))
-            Text(
-                "番茄钟",
-                fontFamily = AppTheme.font,
-                fontSize = 32.sp,
-                fontWeight = W.extra,
-                letterSpacing = (-0.5).sp,
-                style = TextStyle(
-                    brush = Brush.linearGradient(
-                        if (dark) listOf(Color(0xFFB9A6FF), Color(0xFFE0A6FF), Color(0xFFFF9ECB))
-                        else listOf(Color(0xFF4A2FB8), Color(0xFFA24BD0), Color(0xFFE0559A)),
-                    ),
-                ),
-            )
-            Spacer(Modifier.height(8.dp))
-            Text("v1.0.0", color = fg.copy(alpha = 0.5f), fontFamily = AppTheme.font, fontSize = 14.sp, fontWeight = W.semi)
-        }
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp)) {
-            AboutCard(
-                dark,
-                listOf(
-                    AboutRow("应用版本", "v1.0.0", AboutIcon.None),
-                    AboutRow("设计参考", "MiuiX", AboutIcon.Chevron),
-                    AboutRow("我的 GitHub", "@Simlalsy", AboutIcon.External),
-                ),
-            )
-            Spacer(Modifier.height(16.dp))
-            AboutCard(
-                dark,
-                listOf(
-                    AboutRow("MiuiX for Compose", "compose-miuix-ui/miuix", AboutIcon.External),
-                    AboutRow("Material Symbols", "google/material-design-icons", AboutIcon.External),
-                    AboutRow("Inter", "rsms/inter", AboutIcon.External),
-                    AboutRow("Jetpack Compose", "androidx/androidx", AboutIcon.External),
-                    AboutRow("Kotlin", "JetBrains/kotlin", AboutIcon.External),
-                    AboutRow("Gradle", "gradle/gradle", AboutIcon.External),
-                ),
-            )
-            Spacer(Modifier.height(16.dp))
-            AboutCard(
-                dark,
-                listOf(
-                    AboutRow("开源许可", "Apache-2.0", AboutIcon.Chevron),
-                    AboutRow("第三方许可", "", AboutIcon.Chevron),
-                ),
-            )
         }
     }
 }
@@ -665,14 +712,18 @@ private fun AboutCard(dark: Boolean, rows: List<AboutRow>) {
     val fg = if (dark) Color(0xFFECE9FF) else Color(0xFF1B1633)
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(bg)) {
         rows.forEach { row ->
+            // 行高固定：无图标 36+20=56 / 有图标 36+22=58（网页 .about-item 的实测盒高）
             Row(
-                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .height(if (row.icon == AboutIcon.None) 56.dp else 58.dp)
+                    .padding(horizontal = 20.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(row.label, color = fg, fontFamily = AppTheme.font, fontSize = 16.sp, lineHeight = normalLine(16), fontWeight = W.bold, modifier = Modifier.weight(1f))
                 if (row.value.isNotEmpty()) {
-                    Text(row.value, color = fg.copy(alpha = 0.55f), fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14), fontWeight = W.semi, textAlign = TextAlign.End)
+                    Text(row.value, color = fg.copy(alpha = 0.55f), fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = 17.sp, fontWeight = W.semi, textAlign = TextAlign.End)
                 }
                 when (row.icon) {
                     AboutIcon.None -> {}

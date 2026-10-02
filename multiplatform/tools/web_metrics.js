@@ -74,7 +74,9 @@ const MEASURE_JS = `(() => {
     '.todo-item', '.todo-item .t', '.todo-check',
     '.setting-row', '.setting-row .name', '.setting-row .sub',
     '.tone-chip', '.upload-btn',
-    '.week-bars', '.week-bars .bar'
+    '.week-bars', '.week-bars .bar',
+    '.about', '.about-head', '.about-back', '.about-main', '.about-logo', '.about-name', '.about-ver',
+    '.about-card', '.about-item', '.about-item-label', '.about-item-value'
   ];
   const out = [];
   const textInfo = (el) => {
@@ -173,8 +175,29 @@ async function main() {
     if (ok) break;
     await sleep(300);
   }
-  if (page !== 'timer') await evalJs(`document.querySelector('.rail-item[data-page="${page}"]')?.click()`);
-  await sleep(1400);
+  // 特殊状态页（与 webshot.js 保持一致：running / about / todos-items）
+  const basePage = page === 'running' ? 'timer' : page === 'todos-items' ? 'todos' : page === 'about' ? 'settings' : page;
+  if (basePage !== 'timer') {
+    await evalJs(`document.querySelector('.rail-item[data-page="${basePage}"]')?.click()`);
+    await sleep(700);
+  }
+  if (page === 'about') {
+    await evalJs(`document.getElementById('aboutEntry')?.click()`);
+    await sleep(900);
+  } else if (page === 'running') {
+    await evalJs(`(() => {
+      remaining = 687; total = 1500; running = true; endAt = Date.now() + remaining * 1000;
+      completedSessions = 2;
+      document.getElementById('timerRing').classList.add('running');
+      document.getElementById('startText').textContent = '暂停';
+      document.getElementById('startIcon').textContent = 'pause';
+      document.getElementById('startBtn').classList.add('running');
+      updateTime(); updateRing(); updateDots();
+    })()`);
+    await sleep(400);
+  } else {
+    await sleep(1400);
+  }
   const raw = await evalJs(MEASURE_JS);
   fs.writeFileSync(outJson, raw, 'utf8');
   const parsed = JSON.parse(raw);
