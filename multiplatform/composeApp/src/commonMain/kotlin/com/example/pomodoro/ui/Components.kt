@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.sp
 import com.example.pomodoro.AppTheme
 import com.example.pomodoro.AppColors
 import com.example.pomodoro.W
+import com.example.pomodoro.auroraBackdrop
 import com.example.pomodoro.latinLine
 import com.example.pomodoro.normalLine
 
@@ -136,6 +137,8 @@ fun CardBox(
         modifier
             .shadow(8.dp, RoundedCornerShape(radius), clip = false, ambientColor = c.shadow, spotColor = c.shadow)
             .clip(RoundedCornerShape(radius))
+            // 网页 [data-theme=aurora] .card backdrop-filter: blur(16px) saturate(1.5)
+            .auroraBackdrop(1.5f)
             // [data-bg-active]：卡片底色 52%、描边 70%（对应网页 .card）
             .background(glassDim(c.container, 0.52f))
             .border(1.dp, glassDim(c.divider, 0.70f), RoundedCornerShape(radius))
@@ -394,6 +397,8 @@ fun StatCell(value: String, label: String, modifier: Modifier = Modifier) {
     Column(
         modifier
             .clip(RoundedCornerShape(16.dp))
+            // 网页 [data-theme=aurora] .stat-cell backdrop-filter: blur(12px) saturate(1.4)
+            .auroraBackdrop(1.4f)
             // [data-bg-active]：.stat-cell 底色 52%
             .background(glassDim(c.surface, 0.52f))
             .border(1.dp, c.divider, RoundedCornerShape(16.dp))

@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,15 +50,23 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.compositionLocalOf
 import com.example.pomodoro.ui.AboutPage
 import com.example.pomodoro.ui.IconBtn
 import com.example.pomodoro.ui.MiniTimerOverlay
@@ -108,7 +117,22 @@ fun App(state: State, isDark: Boolean = isSystemInDarkTheme(), showSplash: Boole
         BoxWithConstraints(Modifier.fillMaxSize().background(c.background)) {
             val compact = maxWidth < 760.dp
 
-            if (c.aurora) AuroraBackground()
+            // 极光场：根部算好位置与相位；玻璃容器（卡片/顶栏/侧栏）用它重绘背层模拟 saturate
+            val auroraSpec = if (c.aurora) {
+                val (s, tx, ty) = rememberAuroraDrift()
+                val density = LocalDensity.current
+                val lw = maxWidth * 1.8f
+                val lh = maxHeight * 1.8f
+                AuroraFieldSpec(
+                    wPx = with(density) { lw.toPx() },
+                    hPx = with(density) { lh.toPx() },
+                    s = s,
+                    originX = with(density) { (lw * tx).toPx() },
+                    originY = with(density) { (lh * ty).toPx() },
+                )
+            } else null
+            CompositionLocalProvider(LocalAuroraField provides auroraSpec) {
+            if (auroraSpec != null) AuroraBackground(auroraSpec)
             // 自定义背景图（对应网页 #bgImage：盖在极光层之上、内容之下）
             state.bgImage?.let { BackgroundImageLayer(it) }
 
@@ -163,70 +187,141 @@ fun App(state: State, isDark: Boolean = isSystemInDarkTheme(), showSplash: Boole
                     alpha = splashAlpha.value,
                 )
             }
+            }
         }
     }
 }
 
 /**
- * 极光主题背景层：对应网页 `.aurora-bg > i` —— 180% 画布、四个椭圆径向光斑 + 135° 线性底，
- * 整体按 `auroraDrift`（26s、steps(130)）x/y 漂移；外层裁切出视口。
- * 光斑参数逐项对应 CSS：`radial-gradient(58% 58% at 18% 22%, rgba(124,77,255,.6), transparent 62%)` 等。
+ * 极光漂移相位（对应 @keyframes auroraDrift，26s、steps(130)）：
+ * 离散化后按 0%→50%→100% 的两段线性往返，返回 (s, tx, ty)（tx/ty 为相对 180% 画布的比例）。
+ * 截图时冻到第 2 步：与 tools/webshot.js 注入的 translate3d(-1.3675%, -9.7094%) 同相位。
  */
 @Composable
-private fun AuroraBackground() {
+private fun rememberAuroraDrift(): Triple<Float, Float, Float> {
     val inf = rememberInfiniteTransition(label = "aurora")
     val phase by inf.animateFloat(
         0f, 1f,
         infiniteRepeatable(tween(26_000, easing = LinearEasing)),
         label = "drift",
     )
-    // steps(130, end)：离散化后按 0%→50%→100% 的两段线性往返（与 @keyframes auroraDrift 等价）
-    val stepped = floor(phase.coerceIn(0f, 0.9999f) * 130f) / 130f
+    val stepped = if (State.debugFreezeAnim) 2f / 130f
+    else floor(phase.coerceIn(0f, 0.9999f) * 130f) / 130f
     val s = if (stepped < 0.5f) stepped / 0.5f else (1f - stepped) / 0.5f
-    val tx = -44.4444f * s / 100f
-    val ty = (-8.8889f - 26.6667f * s) / 100f
+    return Triple(s, -44.4444f * s / 100f, (-8.8889f - 26.6667f * s) / 100f)
+}
 
-    BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
-        val w = maxWidth
-        val h = maxHeight
-        val lw = w * 1.8f
-        val lh = h * 1.8f
-        // 整层是一个 180% 画布的 Canvas（requiredSize 不受父约束压缩），漂移直接作用在画布上
-        Canvas(
-            Modifier
-                .offset(x = lw * tx, y = lh * ty)
-                .requiredSize(lw, lh),
-        ) {
-            drawRect(
-                Brush.linearGradient(
-                    0f to Color(0xFF080A1C),
-                    0.52f to Color(0xFF14102E),
-                    1f to Color(0xFF0B1030),
-                    start = Offset.Zero,
-                    end = Offset(size.width, size.height),
-                ),
-            )
-            // 椭圆光斑：在 (cx,cy) 处以 rx 为半径画圆，再纵向压扁到 ry（pivot 在圆心）
-            fun blob(fx: Float, fy: Float, r: Float, color: Color) {
-                val cx = size.width * fx
-                val cy = size.height * fy
-                val rx = size.width * r
-                val ry = size.height * r
-                withTransform({ scale(1f, ry / rx, pivot = Offset(cx, cy)) }) {
-                    drawCircle(
-                        // 停靠点用同色 alpha=0（与 CSS 预乘插值等价）
-                        Brush.radialGradient(0f to color, 0.62f to color.copy(alpha = 0f), center = Offset(cx, cy), radius = rx),
-                        radius = rx,
-                        center = Offset(cx, cy),
-                    )
-                }
-            }
-            blob(0.18f, 0.22f, 0.58f, Color(0x997C4DFF))   // rgba(124,77,255,.6)
-            blob(0.82f, 0.16f, 0.48f, Color(0x6B00BCD4))   // rgba(0,188,212,.42)
-            blob(0.72f, 0.82f, 0.52f, Color(0x803482FF))   // rgba(52,130,255,.5)
-            blob(0.26f, 0.84f, 0.46f, Color(0x5CEC4899))   // rgba(236,72,153,.36)
+/**
+ * 极光背景描述：整层 180% 画布（含 4 个椭圆光斑 + 135° 线性底）在根坐标系里的位置与漂移。
+ * 玻璃容器用它把「背层」重绘一遍（配 saturate 色彩矩阵）来模拟网页 backdrop-filter；
+ * Compose 没有真正的背景采样，但极光场是纯函数，可以精确重画。
+ */
+class AuroraFieldSpec(
+    /** 画布尺寸（px） */
+    val wPx: Float,
+    val hPx: Float,
+    /** 漂移相位 s（0→1→0） */
+    val s: Float,
+    /** 画布左上角在根坐标系里的位置（px） */
+    val originX: Float,
+    val originY: Float,
+) {
+    /** 在 [origin]（容器左上角在根坐标系的位置）所在的 DrawScope 里重绘整层 */
+    fun DrawScope.drawIn(origin: Offset, saturation: Float) {
+        val filter = if (saturation == 1f) null else ColorFilter.colorMatrix(saturateMatrix(saturation))
+        withTransform({ translate(originX - origin.x, originY - origin.y) }) {
+            drawAuroraField(wPx, hPx, s, filter)
         }
     }
+}
+
+val LocalAuroraField = compositionLocalOf<AuroraFieldSpec?> { null }
+
+/**
+ * 玻璃容器背层模拟：容器自身在根坐标系的位置 + 重绘极光场（saturate 矩阵），
+ * 对应网页 backdrop-filter 的 saturate(N)（模糊对低频渐变影响极小，忽略）。
+ * 仅在极光主题且根部提供了 [LocalAuroraField] 时生效。
+ */
+@Composable
+internal fun Modifier.auroraBackdrop(saturation: Float): Modifier {
+    val spec = LocalAuroraField.current ?: return this
+    var posInRoot by remember { mutableStateOf(Offset.Unspecified) }
+    return this
+        // 副本必须裁到容器自身（对应 CSS backdrop-filter 只作用于元素背后区域）
+        .clipToBounds()
+        .onGloballyPositioned { posInRoot = it.positionInRoot() }
+        .drawBehind {
+            if (posInRoot.isSpecified) {
+                with(spec) { drawIn(posInRoot, saturation) }
+            }
+        }
+}
+
+/** CSS filter: saturate(N) 等价色彩矩阵 */
+internal fun saturateMatrix(sat: Float): ColorMatrix {
+    val r = 0.213f
+    val g = 0.715f
+    val b = 0.072f
+    val inv = 1f - sat
+    return ColorMatrix(
+        floatArrayOf(
+            r * inv + sat, g * inv, b * inv, 0f, 0f,
+            r * inv, g * inv + sat, b * inv, 0f, 0f,
+            r * inv, g * inv, b * inv + sat, 0f, 0f,
+            0f, 0f, 0f, 1f, 0f,
+        ),
+    )
+}
+
+/**
+ * 绘制极光 180% 场（尺寸由调用方给出，坐标系原点 = 画布左上角）。
+ * 参数逐项对应 CSS：`radial-gradient(58% 58% at 18% 22%, rgba(124,77,255,.6), transparent 62%)` 等。
+ */
+private fun DrawScope.drawAuroraField(wPx: Float, hPx: Float, s: Float, colorFilter: ColorFilter? = null) {
+    drawRect(
+        Brush.linearGradient(
+            0f to Color(0xFF080A1C),
+            0.52f to Color(0xFF14102E),
+            1f to Color(0xFF0B1030),
+            start = Offset.Zero,
+            end = Offset(wPx, hPx),
+        ),
+        // 显式给满场尺寸：drawRect(brush) 默认用 DrawScope 的节点尺寸，
+        // 在卡片/顶栏这类小节点里会把暗底只画一角，导致光斑悬空叠加（亮雾）
+        topLeft = Offset.Zero,
+        size = Size(wPx, hPx),
+        colorFilter = colorFilter,
+    )
+    // 椭圆光斑：在 (cx,cy) 处以 rx 为半径画圆，再纵向压扁到 ry（pivot 在圆心）
+    fun blob(fx: Float, fy: Float, r: Float, color: Color) {
+        val cx = wPx * fx
+        val cy = hPx * fy
+        val rx = wPx * r
+        val ry = hPx * r
+        withTransform({ scale(1f, ry / rx, pivot = Offset(cx, cy)) }) {
+            drawCircle(
+                // 停靠点用同色 alpha=0（与 CSS 预乘插值等价）
+                Brush.radialGradient(0f to color, 0.62f to color.copy(alpha = 0f), center = Offset(cx, cy), radius = rx),
+                radius = rx,
+                center = Offset(cx, cy),
+                colorFilter = colorFilter,
+            )
+        }
+    }
+    blob(0.18f, 0.22f, 0.58f, Color(0x997C4DFF))   // rgba(124,77,255,.6)
+    blob(0.82f, 0.16f, 0.48f, Color(0x6B00BCD4))   // rgba(0,188,212,.42)
+    blob(0.72f, 0.82f, 0.52f, Color(0x803482FF))   // rgba(52,130,255,.5)
+    blob(0.26f, 0.84f, 0.46f, Color(0x5CEC4899))   // rgba(236,72,153,.36)
+}
+
+/**
+ * 极光主题背景层：对应网页 `.aurora-bg > i`（180% 画布 + 漂移），外层裁切出视口。
+ * 注意：requiredSize 超出约束时会把内容在约束框内【居中】（偏移 −(lw−w)/2, −(lh−h)/2），
+ * 而 CSS 的图层是左上锚定 —— 这里用左上锚定的 drawBehind 直接按 spec 画，天然对齐。
+ */
+@Composable
+private fun AuroraBackground(spec: AuroraFieldSpec) {
+    Box(Modifier.fillMaxSize().clipToBounds().drawBehind { with(spec) { drawIn(Offset.Zero, 1f) } })
 }
 
 /**
@@ -274,6 +369,8 @@ private fun RailLeft(state: State) {
         Modifier
             .width(88.dp)
             .fillMaxHeight()
+            // 网页 .rail backdrop-filter: blur(24px) saturate(1.6)——极光下用同一场重绘背层
+            .auroraBackdrop(1.6f)
             // color-mix(surface 58%) = alpha×0.58（极光下 surface 自身是 7% 白）
             .background(c.surface.copy(alpha = c.surface.alpha * 0.58f))
             .drawBehind {
@@ -376,6 +473,8 @@ private fun Topbar(state: State) {
         Row(
             Modifier
                 .fillMaxWidth()
+                // 网页 .topbar backdrop-filter: blur(24px) saturate(1.8)
+                .auroraBackdrop(1.8f)
                 .background(c.background.copy(alpha = 0.52f))
                 // 网页 .topbar 是 border-box：1px border-bottom 吃掉底部内边距 → 14-1=13（否则下方内容整体低 1px）
                 .padding(start = 28.dp, end = 28.dp, top = 22.dp, bottom = 13.dp),

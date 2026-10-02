@@ -96,16 +96,16 @@ python tools/compare_shots.py composeApp/build/screenshots "%TEMP%\shot" "%TEMP%
 
 **量测工具**（对齐排查用，`tools/` 下）：
 
-| 工具                           | 用途                                                                 |
-| ------------------------------ | -------------------------------------------------------------------- |
-| `web_metrics.js`               | 导出网页端每个元素的 rect/字号/行高/padding 与文本墨迹盒（对齐基准） |
-| `align_report.py`              | 分块搜索最佳整体位移，定位「哪一块错位了几像素」                     |
-| `rulers.py`                    | 沿列/行找元素边界并自动配对，报告每处偏移                            |
-| `text_rows.py` / `text_cols.py` | 扫描横带/竖带内文字墨迹行（列），逐条对比基线（支持亮色模式）      |
-| `profile.py`                   | 沿行/列输出两图彩色剖面，查径向光晕、描边 1px 级差异               |
-| `ink_box.py` / `bright_box.py` | 量文字/图标的实际墨迹范围（忽略背景与低对比发光）                    |
-| `crop_pair.py`                 | 同区域裁剪、上下并排，放大对比细节                                   |
-| `sample.py`                    | 多点取色对比                                                         |
+| 工具                            | 用途                                                                 |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `web_metrics.js`                | 导出网页端每个元素的 rect/字号/行高/padding 与文本墨迹盒（对齐基准） |
+| `align_report.py`               | 分块搜索最佳整体位移，定位「哪一块错位了几像素」                     |
+| `rulers.py`                     | 沿列/行找元素边界并自动配对，报告每处偏移                            |
+| `text_rows.py` / `text_cols.py` | 扫描横带/竖带内文字墨迹行（列），逐条对比基线（支持亮色模式）        |
+| `profile.py`                    | 沿行/列输出两图彩色剖面，查径向光晕、描边 1px 级差异                 |
+| `ink_box.py` / `bright_box.py`  | 量文字/图标的实际墨迹范围（忽略背景与低对比发光）                    |
+| `crop_pair.py`                  | 同区域裁剪、上下并排，放大对比细节                                   |
+| `sample.py`                     | 多点取色对比                                                         |
 
 **实测结果**（平均差为 0–255 尺度，越小越接近；12 个页面/主题/状态组合，见 `compare_shots.py` 的 PAIRS）：
 
@@ -115,11 +115,11 @@ python tools/compare_shots.py composeApp/build/screenshots "%TEMP%\shot" "%TEMP%
 | 计时页 · 浅色     | 0.96        | 0.43%         |
 | 计时页 · 运行中   | 0.84        | 0.46%         |
 | 统计页 · 深/浅色  | 1.09 / 1.13 | 0.83% / 0.57% |
-| 待办页 · 浅/深色  | 0.60 / 0.61 | 0.36% / 0.42% |
-| 待办页 · 有待办项 | 0.99        | 0.53%         |
+| 待办页 · 浅/深色  | 0.54 / 0.57 | 0.32% / 0.39% |
+| 待办页 · 有待办项 | 0.77        | 0.35%         |
 | 设置页 · 浅/深色  | 1.19 / 1.05 | 0.72% / 0.77% |
 | 关于页 · 浅色     | 0.66        | 0.39%         |
-| 计时页 · 极光     | 20.59       | 21.74%        |
+| 计时页 · 极光     | 2.73        | 0.53%         |
 
 对齐过程中修正的**系统性差异**（都已落实）：
 
@@ -139,7 +139,7 @@ python tools/compare_shots.py composeApp/build/screenshots "%TEMP%\shot" "%TEMP%
 - **进度环发光**：CSS 是 `drop-shadow(0 0 10px primary@60%)`，原生改用同弧线 13dp 高斯模糊层
   （`Modifier.blur`，Android 12 以下为空操作）；环内环境光按 `radial-gradient(26% → transparent 70%,
 circle=最远角, opacity .5→.85)` 精确定参；截图时两边把呼吸动画冻结到同一基准相位
-（`State.debugFreezeAnim` + `webshot.js` 注入 `animation:none`）。
+  （`State.debugFreezeAnim` + `webshot.js` 注入 `animation:none`）。
 - **主按钮阴影**：CSS `box-shadow: 0 10px 24px primary@35%` 只有向下偏移、无环境光；
   Compose `Modifier.shadow` 会四向发光 —— 改用「偏移 10dp + σ12 模糊层」叠加复刻。
 - **渐变的梯度轴**：CSS `linear-gradient(Adeg, …)` 的轴长是 `w·|sinA| + h·|cosA|`、过中心
@@ -147,14 +147,25 @@ circle=最远角, opacity .5→.85)` 精确定参；截图时两边把呼吸动�
 - **极光背景**：按 `.aurora-bg > i` 的 180% 画布 + 4 个椭圆光斑（`58% 58% at 18% 22%` …）+
   `steps(130)` 漂移逐项复刻（截图脚本把网页动画冻结在同一相位）；`color-mix(X N%)` 一律按
   **alpha × N%** 换算（曾误用 alpha 覆盖，极光下 rail/迷你计时器整块偏亮）。
+- **极光画布锚点（requiredSize 居中语义）**：Compose 的布局对超出约束的内容会在约束框内**居中**
+  （偏移 −(lw−w)/2, −(lh−h)/2），而 CSS 图层是左上锚定 —— 180% 极光画布曾因此整体错位（20.59 → 4.09）。
+  改为在根部算好场的位置（`AuroraFieldSpec`），各层用带锚定的 `drawBehind` 直接绘制。
+- **drawRect(brush) 默认节点尺寸**：不传 `topLeft`/`size` 时按 DrawScope 所属节点大小铺底 ——
+  全屏基座上没问题，但卡片/顶栏这类小节点里 180% 场的暗底只画了一角，4 个光斑悬空叠加 → 整屏亮雾
+  （极光 17.98 → 2.73 的最后一处）；极光场一律显式 `size = (wPx, hPx)`。
+- **backdrop-filter 的 saturate 模拟**：CSS 的 `backdrop-filter: saturate(N)` 会对元素背后已合成的
+  背层增艳。Compose 无背层采样，但极光场是纯函数 —— 玻璃容器用 `auroraBackdrop(N)` 以同一场重绘背层
+  （saturate 色彩矩阵，0.213/0.715/0.072 系数）并 **`clipToBounds` 裁到容器自身**（对应 backdrop 只作用于
+  元素背后区域）；模糊分量对低频渐变影响极小，舍去。卡片 1.5 / 侧栏 1.6 / 顶栏 1.8 / 统计格 1.4 与网页一致。
 - **周分布图**：网页是「渐变药丸柱（18×全圆角 9、180° primary→primary-container、35% 光晕）+ 星期标签」，
   不是灰色方柱 + 日期数字。
 - **待办页**：空态/统计行文案、勾选圆（边框圈 → 完成后填充，无对勾）、列表顺序与网页一致。
 
 **已知不适用等价物**：
 
-- `backdrop-filter`（背层模糊 + saturate）Compose 无对应能力 —— 极光主题与背景图模式下
-  卡片内部的取色无法逐像素对齐（网页的 saturate(1.6) 会明显增艳背后的极光）；其余主题不受影响。
+- `backdrop-filter` 的**模糊分量**无对应能力（saturate 已用「重绘纯函数场 + 色彩矩阵」复刻）；
+  极光主题下卡片内部仅有 saturate 带来的色相与网页一致，模糊带来的细节差异仍在（2.73 的残余）。
+  自定义背景图模式下同理无法采样图片背层。
 - 文字光栅化（Skia vs Chromium）带来的 1px 级描边差异：属于系统渲染器差异，无法消除；
   大色块/描边/圆角颜色在抽样点逐像素相同。
 - 关于页 0.66、其余页面 0.6–1.2 的平均差已主要来自文字抗锯齿与亚像素定位，继续收敛的性价比很低。
