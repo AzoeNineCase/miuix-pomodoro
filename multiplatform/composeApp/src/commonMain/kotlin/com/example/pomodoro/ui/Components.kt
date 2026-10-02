@@ -16,6 +16,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -356,23 +359,31 @@ fun PrimaryButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.94f else 1f, spring(dampingRatio = 0.5f, stiffness = 600f))
-    Row(
-        Modifier
-            .height(height)
-            .scale(scale)
-            .then(if (running) Modifier else Modifier.shadow(10.dp, RoundedCornerShape(18.dp), clip = false, ambientColor = c.primary.copy(alpha = 0.35f), spotColor = c.primary.copy(alpha = 0.35f)))
-            .clip(RoundedCornerShape(18.dp))
-            .background(bg)
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .padding(horizontal = paddingHorizontal),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        if (icon != null) {
-            Symbol(icon, if (fontSize >= 16) 26.dp else 20.dp, fg)
-            Spacer(Modifier.width(8.dp))
+    // 网页 .btn-primary box-shadow: 0 10px 24px primary@35%（仅向下偏移，无环境光）；
+    // Compose 的 Modifier.shadow 会带 ambient（四周都有），用偏移+模糊层精确复刻
+    Box(Modifier.height(height).scale(scale)) {
+        if (!running) {
+            Box(
+                Modifier.matchParentSize().offset(y = 10.dp).blur(12.dp, BlurredEdgeTreatment.Unbounded)
+                    .background(c.primary.copy(alpha = 0.35f), RoundedCornerShape(18.dp)),
+            )
         }
-        Text(text, color = fg, fontFamily = AppTheme.font, fontSize = fontSize.sp, lineHeight = normalLine(fontSize), fontWeight = W.bold)
+        Row(
+            Modifier
+                .height(height)
+                .clip(RoundedCornerShape(18.dp))
+                .background(bg)
+                .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                .padding(horizontal = paddingHorizontal),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            if (icon != null) {
+                Symbol(icon, if (fontSize >= 16) 26.dp else 20.dp, fg)
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(text, color = fg, fontFamily = AppTheme.font, fontSize = fontSize.sp, lineHeight = normalLine(fontSize), fontWeight = W.bold)
+        }
     }
 }
 
