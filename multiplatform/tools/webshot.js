@@ -186,6 +186,15 @@ async function main() {
     await sleep(150);
   }
 
+  // 环形呼吸光晕冻结到基准态（animation:none → opacity .55、无缩放），
+  // 对应原生 State.debugFreezeAnim（截图时停在同一相位，帧才可比）
+  await evalJs(`(() => {
+    const st = document.createElement('style');
+    st.textContent = '.ring-ambient{animation:none!important}.timer-center .dot{animation:none!important}';
+    document.head.appendChild(st);
+  })()`);
+  await sleep(80);
+
   const fontInfo = await evalJs(`(function(){
     const el = document.querySelector('.material-symbols-rounded');
     const cs = el ? getComputedStyle(el) : null;

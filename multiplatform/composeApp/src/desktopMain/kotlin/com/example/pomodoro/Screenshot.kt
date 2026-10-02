@@ -28,6 +28,8 @@ import java.io.File
  */
 fun main(args: Array<String>) {
     val outDir = File(args.getOrNull(0) ?: "build/screenshots").apply { mkdirs() }
+    // 环形呼吸等无限动画在截图里冻结到基准相位，与 tools/webshot.js 注入的 animation:none 对应
+    State.debugFreezeAnim = true
     // 宽度/高度按**像素**给出（density 倍率下）：desktop 用 2560×1600@2 = 1280×800dp，
     // 手机用 786×1704@2 = 393×852dp
     val width = args.getOrNull(1)?.toIntOrNull() ?: 2560

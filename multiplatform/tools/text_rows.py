@@ -1,7 +1,10 @@
-"""在指定列带内查找“深色文字行”的 y 区间，用于对齐两图的行基线。
+"""在指定列带内查找“文字行”的 y 区间，用于对齐两图的行基线。
 
 用法:
-    python text_rows.py <img.png> <x0> <x1> [thr=110] [minw=3]
+    python text_rows.py <img.png> <x0> <x1> [thr=110] [minw=3] [above]
+
+thr   亮度阈值；默认找 < thr 的暗色行。
+above 传 "above" 时改为找 > thr 的亮色行（深色主题用）。
 
 输出: 每行一个 `y0..y1 (h=.., cy=..)`，minw 为行内至少多少个像素低于阈值。
 """
@@ -16,13 +19,15 @@ def main():
     x0, x1 = int(sys.argv[2]), int(sys.argv[3])
     thr = int(sys.argv[4]) if len(sys.argv) > 4 else 110
     minw = int(sys.argv[5]) if len(sys.argv) > 5 else 3
+    above = len(sys.argv) > 6 and sys.argv[6] == "above"
     px = img.load()
     runs = []
     start = None
     for y in range(img.height):
         cnt = 0
         for x in range(x0, x1):
-            if px[x, y] < thr:
+            hit = px[x, y] > thr if above else px[x, y] < thr
+            if hit:
                 cnt += 1
                 if cnt >= minw:
                     break

@@ -168,11 +168,12 @@ fun Segment(
                     .weight(1f)
                     .clip(RoundedCornerShape(12.dp))
                     .background(bg)
-                    .clickable { onSelect(i) }
-                    .padding(vertical = 10.dp),
+                    .clickable { onSelect(i) },
                 contentAlignment = Alignment.Center,
             ) {
                 // 选中态下方的主色条（growbar：从左向右 scaleX 展开）
+                // 注意：条要相对“按钮整个盒子”定位（同网页 ::before 的 absolute），
+                // 所以按钮的垂直 padding 放到文字上，别放在 Box 上（否则条会贴到内容盒底部=文字中线）
                 if (active) {
                     val p by animateFloatAsState(1f, spring(dampingRatio = 0.6f, stiffness = 500f))
                     Box(
@@ -186,7 +187,15 @@ fun Segment(
                             .background(c.primary),
                     )
                 }
-                Text(label, color = fg, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14), fontWeight = W.semi)
+                Text(
+                    label,
+                    color = fg,
+                    fontFamily = AppTheme.font,
+                    fontSize = 14.sp,
+                    lineHeight = normalLine(14),
+                    fontWeight = W.semi,
+                    modifier = Modifier.padding(vertical = 10.dp),
+                )
             }
         }
     }

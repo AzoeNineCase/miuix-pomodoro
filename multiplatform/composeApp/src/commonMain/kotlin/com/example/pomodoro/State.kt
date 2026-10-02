@@ -473,6 +473,11 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
         completedSessions = cycle
     }
 
+    companion object {
+        /** 截图/像素比对时置 true：环形呼吸等动画停在基准相位，与网页冻结后的静态帧可比 */
+        var debugFreezeAnim = false
+    }
+
     /** 跨天：把统计切到新的一天（对应网页 ensureToday） */
     fun checkDailyReset() {
         val k = todayKey()

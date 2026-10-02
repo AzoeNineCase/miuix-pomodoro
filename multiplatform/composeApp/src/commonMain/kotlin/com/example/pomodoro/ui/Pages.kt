@@ -98,8 +98,9 @@ fun TimerPage(state: State, compact: Boolean = false) {
 private fun TimerCard(state: State) {
     val scope = rememberCoroutineScope()
     CardBox(padding = 0.dp) {
+        // 网页 .timer-wrap 是 border-box：1px 边框也占内容空间（34+1 / 30+1），否则整块内容会高 1px
         Column(
-            Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 34.dp, bottom = 30.dp),
+            Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 35.dp, bottom = 31.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             TimerRing(state, 300.dp)
@@ -136,21 +137,26 @@ private fun TimerRing(state: State, size: Dp) {
     val px = with(androidx.compose.ui.platform.LocalDensity.current) { size.toPx() }
 
     val inf = rememberInfiniteTransition(label = "ring")
-    val ambient by inf.animateFloat(
+    val ambientAnim by inf.animateFloat(
         0.5f, 0.85f,
         infiniteRepeatable(tween(if (state.running) 2600 else 4000, easing = EaseInOut), RepeatMode.Reverse),
         label = "ambient",
     )
-    val ambientScale by inf.animateFloat(
+    val ambientScaleAnim by inf.animateFloat(
         0.92f, 1.06f,
         infiniteRepeatable(tween(if (state.running) 2600 else 4000, easing = EaseInOut), RepeatMode.Reverse),
         label = "ambientScale",
     )
-    val dotPulse by inf.animateFloat(
+    val dotPulseAnim by inf.animateFloat(
         0.6f, 1.3f,
         infiniteRepeatable(tween(1600, easing = EaseInOut), RepeatMode.Reverse),
         label = "dotPulse",
     )
+    // 截图时冻结到“网页 animation:none”对应的基准态：opacity .55、scale 1（详见 tools/webshot.js）
+    val freeze = State.debugFreezeAnim
+    val ambient = if (freeze) 0.55f else ambientAnim
+    val ambientScale = if (freeze) 1f else ambientScaleAnim
+    val dotPulse = if (freeze) 1f else dotPulseAnim
 
     Box(Modifier.size(size), contentAlignment = Alignment.Center) {
         // 环境光晕：对应 .ring-ambient（inset -14px、circle = 最远角、26% → transparent 70%、opacity .5→.85 呼吸）
@@ -192,17 +198,28 @@ private fun TimerRing(state: State, size: Dp) {
                     .background(c.primary.copy(alpha = if (state.running) 1f else 0f)),
             )
             val timeSize = (size.value * 0.213f).coerceIn(44f, 64f)
-            Text(
-                state.timeText,
-                color = c.onSurface,
-                fontFamily = AppTheme.font,
-                fontSize = timeSize.sp,
-                lineHeight = timeSize.sp,   // 网页 line-height: 1（行盒 = 字号）
-                fontWeight = W.extra,
-                letterSpacing = (-2).sp,
-                style = TextStyle(fontFeatureSettings = "tnum"),
-            )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // CSS line-height:1（行盒 = 字号）：浏览器把负半行距 (fontLine-height)/2 放在盒子上边缘之外，
+            // 基线 = ascent - 半行距；Compose 直接把基线放在 ascent 处 —— 差一个半行距，这里手动补回。
+            // Inter 度量：(1984+494)/2048 = 1.20996 → 半行距 = 0.10498em
+            val halfGap = (1.20996f - 1f) / 2f * timeSize
+            Box(Modifier.height(timeSize.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    state.timeText,
+                    color = c.onSurface,
+                    fontFamily = AppTheme.font,
+                    fontSize = timeSize.sp,
+                    lineHeight = timeSize.sp,
+                    fontWeight = W.extra,
+                    letterSpacing = (-2).sp,
+                    modifier = Modifier.offset(y = (-halfGap).dp),
+                    style = TextStyle(fontFeatureSettings = "tnum"),
+                )
+            }
+            Row(
+                Modifier.height(18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 Symbol(state.mode.icon, 18.dp, c.variant)
                 Text(state.mode.label, color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14), fontWeight = W.semi)
             }
