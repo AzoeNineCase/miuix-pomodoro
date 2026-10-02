@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -101,15 +102,21 @@ private fun glassSurface(level: Int): Color {
 @Composable
 fun Symbol(name: String, size: Dp, color: Color, modifier: Modifier = Modifier) {
     val density = LocalDensity.current
-    Text(
-        text = SYMBOLS[name].orEmpty(),
-        modifier = modifier,
-        color = color,
-        fontSize = with(density) { size.toSp() },
-        fontFamily = AppTheme.symbols,
-        style = TextStyle(lineHeight = with(density) { size.toSp() }),
-        maxLines = 1,
-    )
+    // 网页 .material-symbols-rounded 是 line-height:1，行盒正好等于字号；
+    // Compose 里显式 lineHeight 小于字体自然行高时行盒仍会被撑到 ≈1.19em，
+    // 放进 Rows/Columns 就会多占≈19% 高度（侧栏项高 67→72、逐项漂移），用定高盒钉住
+    Box(modifier.height(size), contentAlignment = Alignment.Center) {
+        Text(
+            text = SYMBOLS[name].orEmpty(),
+            // 基线同样要减半行距：图标字体 (1056+96)/960 = 1.2 → 0.1em（网页 line-height:1 的负半行距）
+            modifier = Modifier.offset(y = -(size * 0.1f)),
+            color = color,
+            fontSize = with(density) { size.toSp() },
+            fontFamily = AppTheme.symbols,
+            style = TextStyle(lineHeight = with(density) { size.toSp() }),
+            maxLines = 1,
+        )
+    }
 }
 
 /** 卡片：bg surface-container / 1px divider 描边 / 圆角 20 / 内边距 26 / 阴影 */
@@ -138,7 +145,7 @@ fun CardBox(
 fun CardTitle(strong: String, rest: String, modifier: Modifier = Modifier) {
     val c = AppTheme.colors
     Row(modifier) {
-        Text(strong, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 15.sp, lineHeight = normalLine(15), fontWeight = W.extra, letterSpacing = 0.2.sp)
+        Text(strong, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 15.sp, lineHeight = normalLine(15), fontWeight = W.bold, letterSpacing = 0.2.sp)
         Text(rest, color = c.variant, fontFamily = AppTheme.font, fontSize = 15.sp, lineHeight = normalLine(15), fontWeight = W.bold, letterSpacing = 0.2.sp)
     }
 }
