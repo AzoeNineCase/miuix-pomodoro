@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import com.example.pomodoro.AppTheme
 import com.example.pomodoro.AppColors
 import com.example.pomodoro.W
+import com.example.pomodoro.normalLine
 
 /* ============================================================
  * 通用组件：尺寸/圆角/字重全部对应 index.html 的 CSS 规格
@@ -132,23 +133,22 @@ fun CardBox(
     )
 }
 
-/** 卡片标题：<strong> 部分用 onSurface，其余用 onSurfaceVariant，15sp/700 */
+/** 卡片标题：<strong> 部分用 onSurface（浏览器 bolder → 命中 800 字重）/ 其余用 onSurfaceVariant，15sp/700 */
 @Composable
 fun CardTitle(strong: String, rest: String, modifier: Modifier = Modifier) {
     val c = AppTheme.colors
     Row(modifier) {
-        Text(strong, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 15.sp, fontWeight = W.bold, letterSpacing = 0.2.sp)
-        Text(rest, color = c.variant, fontFamily = AppTheme.font, fontSize = 15.sp, fontWeight = W.bold, letterSpacing = 0.2.sp)
+        Text(strong, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 15.sp, lineHeight = normalLine(15), fontWeight = W.extra, letterSpacing = 0.2.sp)
+        Text(rest, color = c.variant, fontFamily = AppTheme.font, fontSize = 15.sp, lineHeight = normalLine(15), fontWeight = W.bold, letterSpacing = 0.2.sp)
     }
 }
 
-/** 分段控件：容器 radius 16 + padding 4 + gap 4；选中项 bg surface + 底部 3px 主色条 */
+/** 分段控件：容器 radius 16 + padding 4 + gap 4；按钮 padding 10/14、行高 18（同网页 .segment button，高 38 → 容器 46） */
 @Composable
 fun Segment(
     items: List<String>,
     selectedIndex: Int,
     modifier: Modifier = Modifier,
-    height: Dp = 42.dp,
     onSelect: (Int) -> Unit,
 ) {
     val c = AppTheme.colors
@@ -166,10 +166,10 @@ fun Segment(
             Box(
                 Modifier
                     .weight(1f)
-                    .height(height)
                     .clip(RoundedCornerShape(12.dp))
                     .background(bg)
-                    .clickable { onSelect(i) },
+                    .clickable { onSelect(i) }
+                    .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 // 选中态下方的主色条（growbar：从左向右 scaleX 展开）
@@ -186,7 +186,7 @@ fun Segment(
                             .background(c.primary),
                     )
                 }
-                Text(label, color = fg, fontFamily = AppTheme.font, fontSize = 14.sp, fontWeight = W.semi)
+                Text(label, color = fg, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14), fontWeight = W.semi)
             }
         }
     }
@@ -199,6 +199,7 @@ fun Stepper(value: Int, onDelta: (Int) -> Unit) {
     Row(
         Modifier.clip(RoundedCornerShape(12.dp)).background(glassSurface(0)).padding(4.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         StepperButton("remove") { onDelta(-1) }
         Box(Modifier.widthIn(min = 44.dp), contentAlignment = Alignment.Center) {
@@ -206,7 +207,8 @@ fun Stepper(value: Int, onDelta: (Int) -> Unit) {
                 "$value",
                 color = c.onSurface,
                 fontFamily = AppTheme.font,
-                fontSize = 15.sp,
+                fontSize = 16.sp,
+                lineHeight = normalLine(16),
                 fontWeight = W.bold,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.widthIn(min = 44.dp),
@@ -293,6 +295,32 @@ fun GhostButton(icon: String, onClick: () -> Unit) {
     ) { Symbol(icon, 24.dp, c.onSurface) }
 }
 
+/**
+ * 宽幽灵按钮（设置页「应用 / 上传本地图片 / 换一张」等）：对应网页
+ * `.btn.btn-ghost` 的自适应宽度形态（height 46、padding 0 18、字号 14、图标 20）。
+ */
+@Composable
+fun GhostWideButton(text: String, icon: String, onClick: () -> Unit) {
+    val c = AppTheme.colors
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.94f else 1f, spring(dampingRatio = 0.5f, stiffness = 600f))
+    Row(
+        Modifier
+            .height(46.dp)
+            .scale(scale)
+            .clip(RoundedCornerShape(18.dp))
+            .background(glassSurface(1))
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Symbol(icon, 20.dp, c.onSurface)
+        Text(text, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14), fontWeight = W.bold)
+    }
+}
+
 /** 主按钮（开始/暂停/添加 等）：高 60，左右内边距 34，radius 18，主色 + 主色阴影 */
 @Composable
 fun PrimaryButton(
@@ -326,7 +354,7 @@ fun PrimaryButton(
             Symbol(icon, if (fontSize >= 16) 26.dp else 20.dp, fg)
             Spacer(Modifier.width(8.dp))
         }
-        Text(text, color = fg, fontFamily = AppTheme.font, fontSize = fontSize.sp, fontWeight = W.bold)
+        Text(text, color = fg, fontFamily = AppTheme.font, fontSize = fontSize.sp, lineHeight = normalLine(fontSize), fontWeight = W.bold)
     }
 }
 
@@ -343,8 +371,8 @@ fun StatCell(value: String, label: String, modifier: Modifier = Modifier) {
             .padding(horizontal = 18.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(value, color = c.primary, fontFamily = AppTheme.font, fontSize = 28.sp, fontWeight = W.extra)
-        Text(label, color = c.variant, fontFamily = AppTheme.font, fontSize = 13.sp, fontWeight = W.semi)
+        Text(value, color = c.primary, fontFamily = AppTheme.font, fontSize = 28.sp, lineHeight = normalLine(28), fontWeight = W.extra)
+        Text(label, color = c.variant, fontFamily = AppTheme.font, fontSize = 13.sp, lineHeight = normalLine(13), fontWeight = W.semi)
     }
 }
 
@@ -370,10 +398,10 @@ fun SettingRow(
                 ) { Symbol(icon, 22.dp, c.primary) }
                 Spacer(Modifier.width(14.dp))
                 Column {
-                    Text(name, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 15.sp, fontWeight = W.bold)
+                    Text(name, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 15.sp, lineHeight = normalLine(15), fontWeight = W.bold)
                     if (!sub.isNullOrEmpty()) {
                         Spacer(Modifier.height(2.dp))
-                        Text(sub, color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(sub, color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp, lineHeight = normalLine(12), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -383,7 +411,7 @@ fun SettingRow(
     }
 }
 
-/** 圆角小胶囊（音色 chip） */
+/** 圆角小胶囊（音色 chip）：border 始终存在（选中时透明，与网页一致，否则高度差 2px） */
 @Composable
 fun Chip(text: String, active: Boolean, onClick: () -> Unit) {
     val c = AppTheme.colors
@@ -393,10 +421,10 @@ fun Chip(text: String, active: Boolean, onClick: () -> Unit) {
         Modifier
             .clip(RoundedCornerShape(12.dp))
             .background(bg)
-            .then(if (active) Modifier else Modifier.border(1.dp, c.divider, RoundedCornerShape(12.dp)))
+            .border(1.dp, if (active) Color.Transparent else c.divider, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 15.dp, vertical = 9.dp),
-    ) { Text(text, color = fg, fontFamily = AppTheme.font, fontSize = 13.sp, fontWeight = W.semi) }
+    ) { Text(text, color = fg, fontFamily = AppTheme.font, fontSize = 13.sp, lineHeight = normalLine(13), fontWeight = W.semi) }
 }
 
 /** 通用圆角背景容器（输入框等） */
@@ -420,6 +448,6 @@ fun ToastBar(text: String, icon: String) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Symbol(icon, 20.dp, if (c.aurora) Color(0xFF12152C) else c.surface)
-        Text(text, color = if (c.aurora) Color(0xFF12152C) else c.surface, fontFamily = AppTheme.font, fontSize = 14.sp, fontWeight = W.semi)
+        Text(text, color = if (c.aurora) Color(0xFF12152C) else c.surface, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14), fontWeight = W.semi)
     }
 }

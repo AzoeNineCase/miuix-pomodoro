@@ -8,6 +8,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
 import com.example.pomodoro.ui.AppFonts
 
 /**
@@ -155,3 +157,35 @@ object W {
     val bold = FontWeight(700)
     val extra = FontWeight(800)
 }
+
+/**
+ * CSS `line-height: normal` 在真实字体栈下的实测行盒高度（px = dp）。
+ * 数据来自 tools/web_metrics.js 的行盒探针（14→18、15→19、26→33 …）；
+ * 中文回退字体（Windows 雅黑 / 安卓 MiSans）比 Inter 高约 5%，含中文的行取回退值。
+ */
+internal fun normalLine(size: Int): TextUnit = when (size) {
+    11 -> 14
+    12 -> 15
+    13 -> 16
+    14 -> 18
+    15 -> 19
+    16 -> 20
+    17 -> 21
+    18 -> 23
+    19 -> 24
+    20 -> 25
+    21 -> 26
+    22 -> 28
+    23 -> 29
+    24 -> 30
+    25 -> 32
+    26 -> 33
+    28 -> 35
+    30 -> 38
+    34 -> 43
+    40 -> 51
+    44 -> 56
+    56 -> 71
+    64 -> 81
+    else -> kotlin.math.round(size * 1.266).toInt()
+}.sp

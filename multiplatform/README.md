@@ -86,25 +86,61 @@ zip -r PomodoroTimer.ipa Payload
 
 # 2) 网页侧：headless Edge + CDP 截图（复用 android 内置字体走本地 HTTP，渲染与安卓实机一致）
 node tools/webshot.js timer dark  "%TEMP%\shot\web-timer-dark.png"
-node tools/webshot.js stats dark  "%TEMP%\shot\web-stats-dark.png"
+node tools/webshot.js running dark "%TEMP%\shot\web-timer-running-dark.png"   # 运行中状态
+node tools/webshot.js todos-items light                                       # 带待办项
+node tools/webshot.js about light                                             # 关于页
 
 # 3) 逐像素比对：平均差 / 超阈像素占比 / 条带定位 + 热力图与并排图
 python tools/compare_shots.py composeApp/build/screenshots "%TEMP%\shot" "%TEMP%\diff"
-python tools/measure.py <原生图> <网页图>      # 关键几何与取色
 ```
 
-**实测结果**（平均差为 0–255 尺度，越小越接近）：
+**量测工具**（对齐排查用，`tools/` 下）：
 
-| 页面          | 平均差 | 最大差 | >32 像素占比 |
-| ------------- | ------ | ------ | ------------ |
-| 计时页 · 深色 | 1.49   | 204    | 1.11%        |
-| 计时页 · 浅色 | 1.84   | 240    | 0.87%        |
-| 统计页 · 深色 | 1.76   | 204    | 1.37%        |
-| 设置页 · 浅色 | 1.95   | 240    | 1.17%        |
-| 待办页 · 浅色 | 1.25   | 240    | 0.68%        |
+| 工具 | 用途 |
+| ---- | ---- |
+| `web_metrics.js` | 导出网页端每个元素的 rect/字号/行高/padding 与文本墨迹盒（对齐基准） |
+| `align_report.py` | 分块搜索最佳整体位移，定位「哪一块错位了几像素」 |
+| `rulers.py` | 沿列/行找元素边界并自动配对，报告每处偏移 |
+| `ink_box.py` / `bright_box.py` | 量文字/图标的实际墨迹范围（忽略背景与低对比发光） |
+| `crop_pair.py` | 同区域裁剪、上下并排，放大对比细节 |
+| `sample.py` | 多点取色对比 |
 
-背景/卡片等大面积色块在抽样点**逐像素相同**，残差主要来自文字光栅化（Skia vs Chromium）与进度环发光。
+**实测结果**（平均差为 0–255 尺度，越小越接近；12 个页面/主题/状态组合，见 `compare_shots.py` 的 PAIRS）：
 
-**已知不适用等价物**：`backdrop-filter`（背层模糊）在 Compose 无对应能力；极光背景是低频渐变，模糊与否视觉差异极小，底色/描边/阴影已完全对齐。
+| 页面                | 平均差 | >32 像素占比 |
+| ------------------- | ------ | ------------ |
+| 计时页 · 深色       | 1.61   | 1.34%        |
+| 计时页 · 浅色       | 1.90   | 1.02%        |
+| 计时页 · 运行中     | 1.48   | 1.21%        |
+| 统计页 · 深/浅色    | 1.43 / 1.50 | 1.33% / 0.86% |
+| 待办页 · 浅/深色    | 0.94 / 0.95 | 0.60% / 0.87% |
+| 待办页 · 有待办项   | 1.41   | 0.83%        |
+| 设置页 · 浅/深色    | 1.76 / 1.57 | 1.10% / 1.35% |
+| 关于页 · 浅色       | 6.08   | 2.30%        |
+| 计时页 · 极光       | 21.13  | 22.32%       |
+
+对齐过程中修正的**系统性差异**（都已落实）：
+
+- **行盒高**：CSS `line-height: normal` 实测比 Compose 默认度量高 1–2px（如 15px 字号 19 vs 18），
+  且中文回退字体（雅黑/MiSans）比 Inter 高约 5% —— 统一用 `Theme.kt` 的 `normalLine(size)` 显式指定，
+  消除了设置页/关于页向下逐行累积的 5–6px 漂移。
+- **组件尺寸按 CSS 内容盒推导**：Segment 按钮 10+行盒+10（容器 46，不再是固定高度）、步进器 gap 4、
+  音色 chip 边框恒存（选中透明，否则矮 2px）、会话圆点 10px + 光晕不占布局、卡片标题 `<strong>`
+  按浏览器 `bolder` 规则取 800 字重。
+- **进度环发光**：CSS 是 `drop-shadow(0 0 10px primary@60%)`，原生改用同弧线 13dp 高斯模糊层
+  （`Modifier.blur`，Android 12 以下为空操作）；环内环境光按 `radial-gradient(26% → transparent 70%,
+  circle=最远角, opacity .5→.85)` 精确定参。
+- **极光背景**：按 `.aurora-bg > i` 的 180% 画布 + 4 个椭圆光斑（`58% 58% at 18% 22%` …）+
+  `steps(130)` 漂移逐项复刻（截图脚本把网页动画冻结在同一相位）；`color-mix(X N%)` 一律按
+  **alpha × N%** 换算（曾误用 alpha 覆盖，极光下 rail/迷你计时器整块偏亮）。
+- **待办页**：空态/统计行文案、勾选圆（边框圈 → 完成后填充，无对勾）、列表顺序与网页一致。
+
+**已知不适用等价物**：
+
+- `backdrop-filter`（背层模糊 + saturate）Compose 无对应能力 —— 极光主题与背景图模式下
+  卡片内部的取色无法逐像素对齐（网页的 saturate(1.6) 会明显增艳背后的极光）；其余主题不受影响。
+- 文字光栅化（Skia vs Chromium）带来的 1px 级描边差异：属于系统渲染器差异，无法消除；
+  大色块/描边/圆角颜色在抽样点逐像素相同。
+- 关于页仍有行级 2–5px 的累积残差（11 行 × 微小行高差），下一步可继续用 `rulers.py` 收敛。
 
 **被墙时的推送通道**：`github.com:443` 不可达而 `api.github.com` 正常时，用 `node tools/gh-push.js main` 经 Git Data API 推送（内部自检「远端 tree == 本地 tree」）。

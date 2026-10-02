@@ -78,7 +78,7 @@ fun MiniTimerOverlay(state: State) {
                 Modifier
                     .shadow(16.dp, RoundedCornerShape(40.dp), clip = false, ambientColor = c.shadowLg, spotColor = c.shadowLg)
                     .clip(RoundedCornerShape(40.dp))
-                    .background(c.container.copy(alpha = 0.92f))
+                    .background(c.container.copy(alpha = c.container.alpha * 0.80f))
                     .border(1.dp, c.divider, RoundedCornerShape(40.dp))
                     .padding(start = 8.dp, end = 14.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,

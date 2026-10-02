@@ -22,9 +22,16 @@ from PIL import Image, ImageChops
 PAIRS = [
     ("desktop-timer-dark", "web-timer-dark"),
     ("desktop-timer-light", "web-timer-light"),
+    ("desktop-timer-aurora", "web-timer-aurora"),
+    ("desktop-timer-running", "web-timer-running-dark"),
     ("desktop-stats-dark", "web-stats-dark"),
-    ("desktop-settings-light", "web-settings-light"),
+    ("desktop-stats-light", "web-stats-light"),
     ("desktop-todos-light", "web-todos-light"),
+    ("desktop-todos-dark", "web-todos-dark"),
+    ("desktop-todos-items", "web-todos-items-light"),
+    ("desktop-settings-light", "web-settings-light"),
+    ("desktop-settings-dark", "web-settings-dark"),
+    ("desktop-about-light", "web-about-light"),
 ]
 
 

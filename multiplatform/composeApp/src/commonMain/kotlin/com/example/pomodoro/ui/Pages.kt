@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,6 +26,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,15 +37,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -53,6 +62,7 @@ import com.example.pomodoro.TimerMode
 import com.example.pomodoro.TodoItem
 import com.example.pomodoro.W
 import com.example.pomodoro.accentColorOrNull
+import com.example.pomodoro.normalLine
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlinx.coroutines.launch
@@ -103,6 +113,15 @@ private fun TimerCard(state: State) {
     }
 }
 
+/** 画一段（或整圈）计时环弧线：几何与网页 SVG（viewBox 300、r=130）完全一致 */
+private fun DrawScope.drawRingArc(color: Color, sw: Float, p: Float, cap: StrokeCap) {
+    val radius = 130f * (size.width / 300f)
+    val center = Offset(size.width / 2, size.height / 2)
+    val topLeft = Offset(center.x - radius, center.y - radius)
+    val arcSize = Size(radius * 2, radius * 2)
+    drawArc(color, -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw, cap = cap))
+}
+
 @Composable
 private fun TimerRing(state: State, size: Dp) {
     val c = AppTheme.colors
@@ -127,42 +146,34 @@ private fun TimerRing(state: State, size: Dp) {
     )
 
     Box(Modifier.size(size), contentAlignment = Alignment.Center) {
-        // 环境光晕：对应 .ring-ambient（inset -14px / radial primary 26% → transparent 70% / opacity .55→.9）
+        // 环境光晕：对应 .ring-ambient（inset -14px、circle = 最远角、26% → transparent 70%、opacity .5→.85 呼吸）
         Box(
             Modifier
                 .fillMaxSize()
                 .scale(ambientScale)
                 .background(
                     Brush.radialGradient(
-                        listOf(
-                            c.primary.copy(alpha = 0.145f * ambient),
-                            c.primary.copy(alpha = 0.085f * ambient),
-                            c.primary.copy(alpha = 0.03f * ambient),
-                            Color.Transparent,
-                        ),
+                        0f to c.primary.copy(alpha = 0.26f * ambient),
+                        1f to Color.Transparent,
                         center = Offset(px / 2f, px / 2f),
-                        radius = px * 0.62f,
+                        radius = px * 0.541f,   // (300+28)/2·√2·0.70 ≈ 162px
                     ),
                 ),
         )
         // [data-bg-active]：.ring-track 描边换成 outline 60%
         val track = if (c.bgActive) glassDim(c.outline, 0.60f) else c.containerHighest
+        val p = state.progress.coerceIn(0f, 1f)
         Canvas(Modifier.fillMaxSize()) {
-            val sw = stroke.toPx()
-            val radius = 130f * (this.size.width / 300f)
-            val center = Offset(this.size.width / 2, this.size.height / 2)
-            val topLeft = Offset(center.x - radius, center.y - radius)
-            val arcSize = Size(radius * 2, radius * 2)
-
-            drawArc(track, 0f, 360f, false, topLeft, arcSize, style = Stroke(sw))
-
-            val p = state.progress.coerceIn(0f, 1f)
-            if (p > 0f) {
-                // 发光近似：CSS 里是 drop-shadow(0 0 10px primary@60%)（10px 模糊、60% 不透明度）
-                drawArc(c.primary.copy(alpha = 0.06f), -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw * 3.2f, cap = StrokeCap.Round))
-                drawArc(c.primary.copy(alpha = 0.12f), -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw * 2.2f, cap = StrokeCap.Round))
-                drawArc(c.primary.copy(alpha = 0.22f), -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw * 1.5f, cap = StrokeCap.Round))
-                drawArc(c.primary, -90f, 360f * p, false, topLeft, arcSize, style = Stroke(sw, cap = StrokeCap.Round))
+            drawRingArc(track, stroke.toPx(), 1f, StrokeCap.Butt)
+        }
+        // 进度弧发光：CSS drop-shadow(0 0 10px primary@60%) → 同弧线以 5dp 高斯模糊刷一遍
+        // （CSS 模糊半径 10px ≈ σ5；Android 12 以下 Modifier.blur 为空操作，此时无发光）
+        if (p > 0f) {
+            Canvas(Modifier.fillMaxSize().blur(13.dp, BlurredEdgeTreatment.Unbounded)) {
+                drawRingArc(c.primary.copy(alpha = 0.70f), stroke.toPx(), p, StrokeCap.Round)
+            }
+            Canvas(Modifier.fillMaxSize()) {
+                drawRingArc(c.primary, stroke.toPx(), p, StrokeCap.Round)
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -179,13 +190,14 @@ private fun TimerRing(state: State, size: Dp) {
                 color = c.onSurface,
                 fontFamily = AppTheme.font,
                 fontSize = timeSize.sp,
+                lineHeight = timeSize.sp,   // 网页 line-height: 1（行盒 = 字号）
                 fontWeight = W.extra,
                 letterSpacing = (-2).sp,
                 style = TextStyle(fontFeatureSettings = "tnum"),
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Symbol(state.mode.icon, 18.dp, c.variant)
-                Text(state.mode.label, color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp, fontWeight = W.semi)
+                Text(state.mode.label, color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14), fontWeight = W.semi)
             }
         }
     }
@@ -197,21 +209,15 @@ private fun SessionDots(state: State) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         repeat(state.sessionsBeforeLong) { i ->
             val done = i < state.cycleDone
-            val isCurrent = i == state.cycleDone && state.running
+            // 圆点本体 10dp；done 的 4px 光晕是 box-shadow，不占布局（否则会把后续圆点推远）
             Box(
                 Modifier
-                    .size(if (done) 18.dp else 10.dp)
-                    .clip(CircleShape)
-                    .background(if (done) c.soft else Color.Transparent),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(if (done) c.primary else c.containerHighest),
-                )
-            }
+                    .size(10.dp)
+                    .drawBehind {
+                        if (done) drawCircle(c.soft, radius = 9.dp.toPx())
+                        drawCircle(if (done) c.primary else c.containerHighest, radius = 5.dp.toPx())
+                    },
+            )
         }
     }
 }
@@ -268,7 +274,7 @@ private fun GhostLabel(icon: String, text: String, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Symbol(icon, 20.dp, c.onSurface)
-        Text(text, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 14.sp, fontWeight = W.bold)
+        Text(text, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14), fontWeight = W.bold)
     }
 }
 
@@ -286,7 +292,7 @@ private fun WeekChart(state: State) {
             val fraction = stat.sessions.toFloat() / maxSessions
             Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
                 if (stat.sessions > 0) {
-                    Text("${stat.sessions}", color = c.variant, fontFamily = AppTheme.font, fontSize = 11.sp, fontWeight = W.semi)
+                    Text("${stat.sessions}", color = c.variant, fontFamily = AppTheme.font, fontSize = 11.sp, lineHeight = normalLine(11), fontWeight = W.semi)
                     Spacer(Modifier.height(4.dp))
                 }
                 Box(
@@ -297,7 +303,7 @@ private fun WeekChart(state: State) {
                         .background(if (stat.sessions > 0) c.primary.copy(alpha = 0.85f) else c.containerHigh),
                 )
                 Spacer(Modifier.height(6.dp))
-                Text(key.substringAfterLast('-'), color = c.variant, fontFamily = AppTheme.font, fontSize = 11.sp, fontWeight = W.semi)
+                Text(key.substringAfterLast('-'), color = c.variant, fontFamily = AppTheme.font, fontSize = 11.sp, lineHeight = normalLine(11), fontWeight = W.semi)
             }
         }
     }
@@ -318,14 +324,15 @@ fun TodosPage(state: State) {
                 value = input,
                 onValueChange = { input = it },
                 singleLine = true,
-                textStyle = TextStyle(color = c.onSurface, fontSize = 14.sp, fontFamily = AppTheme.font),
+                textStyle = TextStyle(color = c.onSurface, fontSize = 14.sp, lineHeight = normalLine(14), fontFamily = AppTheme.font),
                 modifier = Modifier.weight(1f),
                 decorationBox = { inner ->
+                    // .bg-input：padding 12/14 + 1px divider 描边 + radius 14（高度由行盒撑）
                     Box(
-                        Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(14.dp)).background(c.containerHigh).padding(horizontal = 14.dp),
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.containerHigh).border(1.dp, c.divider, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
-                        if (input.isEmpty()) Text("添加一个待办，回车确认…", color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp)
+                        if (input.isEmpty()) Text("添加一个待办，回车确认...", color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14))
                         inner()
                     }
                 },
@@ -337,13 +344,15 @@ fun TodosPage(state: State) {
         }
         Spacer(Modifier.height(14.dp))
         val doneCount = state.todos.count { it.done }
-        Row(Modifier.padding(start = 2.dp, bottom = 6.dp)) {
-            Text("共 ${state.todos.size} 项", color = c.onSurface, fontFamily = AppTheme.font, fontSize = 13.sp, fontWeight = W.semi)
-            Text(" · 已完成 $doneCount", color = c.variant, fontFamily = AppTheme.font, fontSize = 13.sp, fontWeight = W.semi)
+        if (state.todos.isNotEmpty()) {
+            Row(Modifier.padding(start = 2.dp)) {
+                Text("已完成 $doneCount / ${state.todos.size}", color = c.variant, fontFamily = AppTheme.font, fontSize = 13.sp, lineHeight = normalLine(13), fontWeight = W.semi)
+            }
         }
+        Spacer(Modifier.height(6.dp))
         if (state.todos.isEmpty()) {
-            Box(Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
-                Text("还没有待办，先加一条吧", color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp)
+            Box(Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 8.dp), contentAlignment = Alignment.Center) {
+                Text("暂无待办，添加一个开始吧 ✨", color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14))
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -372,18 +381,17 @@ private fun TodoRow(todo: TodoItem, onToggle: () -> Unit, onDelete: () -> Unit) 
             Modifier
                 .size(24.dp)
                 .clip(CircleShape)
-                .background(if (todo.done) c.primary else c.containerHigh)
+                .background(if (todo.done) c.primary else Color.Transparent)
+                .border(2.dp, if (todo.done) c.primary else c.outline, CircleShape)
                 .clickable(onClick = onToggle),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (todo.done) Symbol("check", 16.dp, c.onPrimary)
-        }
+        )
         Text(
             todo.text,
             Modifier.weight(1f),
-            color = if (todo.done) c.variant else c.onSurface,
+            color = if (todo.done) c.variant.copy(alpha = 0.85f) else c.onSurface,
             fontFamily = AppTheme.font,
             fontSize = 15.sp,
+            lineHeight = normalLine(15),
             fontWeight = W.semi,
         )
         Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onDelete), contentAlignment = Alignment.Center) {
@@ -475,46 +483,37 @@ fun SettingsPage(state: State) {
                             value = url,
                             onValueChange = { url = it },
                             singleLine = true,
-                            textStyle = TextStyle(color = c.onSurface, fontSize = 14.sp, fontFamily = AppTheme.font),
+                            textStyle = TextStyle(color = c.onSurface, fontSize = 14.sp, lineHeight = normalLine(14), fontFamily = AppTheme.font),
                             modifier = Modifier.weight(1f),
                             decorationBox = { inner ->
                                 Box(
-                                    Modifier.fillMaxWidth().height(46.dp).clip(RoundedCornerShape(14.dp)).background(c.containerHigh).padding(horizontal = 14.dp),
+                                    Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.containerHigh).border(1.dp, c.divider, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
                                     contentAlignment = Alignment.CenterStart,
                                 ) {
-                                    if (url.isEmpty()) Text("粘贴图片链接 https://…", color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp)
+                                    if (url.isEmpty()) Text("粘贴图片链接 https://...", color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14))
                                     inner()
                                 }
                             },
                         )
-                        PrimaryButton(
-                            text = if (state.bgLoading) "加载中…" else "应用",
-                            icon = "check",
-                            height = 46.dp,
-                            fontSize = 14,
-                            paddingHorizontal = 18.dp,
-                        ) {
+                        GhostWideButton(text = if (state.bgLoading) "加载中…" else "应用", icon = "check") {
                             if (!state.bgLoading) scope.launch { state.applyBackgroundUrl(url) }
                         }
                     }
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        GhostLabel("upload", "上传本地图片") { state.showToast("暂不支持本地选图", "error") }
-                        if (state.bgUrl.isNotEmpty()) {
-                            GhostLabel("close", "清除背景") { state.clearBackground() }
-                        }
+                        GhostWideButton("upload", "上传本地图片") { state.showToast("暂不支持本地选图", "error") }
                     }
                     Spacer(Modifier.height(10.dp))
-                    Text("可粘贴图片链接，或从本地选择图片作为背景。", color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp)
+                    Text("可粘贴图片链接，或从本地选择图片作为背景。", color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp, lineHeight = 18.sp)
                 }
                 "api" -> {
-                    Text("可选择 API 来源；开启后每隔 5 分钟自动换图。", color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp)
+                    Text("可选择 API 来源；开启后每隔 5 分钟自动换图。", color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp, lineHeight = 18.sp)
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        GhostLabel("shuffle", "换一张") { state.showToast("API 源待接入", "error") }
+                        GhostWideButton("shuffle", "换一张") { state.showToast("API 源待接入", "error") }
                     }
                 }
-                else -> Text("使用主题自带的渐变背景（浅色 / 深色 / 极光）。", color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp)
+                else -> Text("使用主题自带的渐变背景（浅色 / 深色 / 极光）。", color = c.variant, fontFamily = AppTheme.font, fontSize = 12.sp, lineHeight = 18.sp)
             }
         }
 
@@ -539,7 +538,7 @@ private fun UploadBtn(onClick: () -> Unit) {
             .background(if (c.bgActive) glassDim(c.containerHigh, 0.52f) else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp),
-    ) { Text("上传", color = c.primary, fontFamily = AppTheme.font, fontSize = 13.sp, fontWeight = W.bold) }
+    ) { Text("上传", color = c.primary, fontFamily = AppTheme.font, fontSize = 13.sp, lineHeight = normalLine(13), fontWeight = W.bold) }
 }
 
 @Composable
@@ -560,20 +559,37 @@ private fun ToneChips(selected: String, onSelect: (String) -> Unit) {
 fun AboutPage(state: State, onClose: () -> Unit) {
     val c = AppTheme.colors
     val dark = c.dark
-    val bg = if (dark) {
-        Brush.linearGradient(listOf(Color(0xFF2D1F3D), Color(0xFF241F3E), Color(0xFF181533)))
-    } else {
-        Brush.linearGradient(listOf(Color(0xFFFFE3F1), Color(0xFFF0E7FD), Color(0xFFDCD7FA)))
-    }
     val fg = if (dark) Color(0xFFECE9FF) else Color(0xFF1B1633)
-    Column(Modifier.fillMaxSize().background(bg)) {
+    val bgColors = if (dark) {
+        listOf(Color(0xFF2D1F3D), Color(0xFF241F3E), Color(0xFF181533))
+    } else {
+        listOf(Color(0xFFFFE3F1), Color(0xFFF0E7FD), Color(0xFFDCD7FA))
+    }
+    Column(
+        Modifier
+            .fillMaxSize()
+            // 背景：linear-gradient(165deg, …)，42% 中间停靠点（与网页 .about 一致）
+            .drawBehind {
+                drawRect(
+                    Brush.linearGradient(
+                        0f to bgColors[0], 0.42f to bgColors[1], 1f to bgColors[2],
+                        start = Offset.Zero,
+                        end = Offset(size.width * 0.259f, size.height * 0.966f),
+                    ),
+                )
+            }
+            .verticalScroll(rememberScrollState()),
+    ) {
         Row(Modifier.fillMaxWidth().padding(start = 10.dp, top = 10.dp)) {
             Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
                 Symbol("arrow_back", 24.dp, fg)
             }
         }
         Column(
-            Modifier.weight(1f).fillMaxWidth().padding(horizontal = 20.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, bottom = 12.dp)
+                .heightIn(min = 180.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -610,49 +626,59 @@ fun AboutPage(state: State, onClose: () -> Unit) {
             AboutCard(
                 dark,
                 listOf(
-                    "应用版本" to "v1.0.0",
-                    "设计参考" to "MiuiX",
-                    "我的 GitHub" to "@Simlalsy",
+                    AboutRow("应用版本", "v1.0.0", AboutIcon.None),
+                    AboutRow("设计参考", "MiuiX", AboutIcon.Chevron),
+                    AboutRow("我的 GitHub", "@Simlalsy", AboutIcon.External),
                 ),
             )
             Spacer(Modifier.height(16.dp))
             AboutCard(
                 dark,
                 listOf(
-                    "MiuiX for Compose" to "compose-miuix-ui/miuix",
-                    "Material Symbols" to "google/material-design-icons",
-                    "Inter" to "rsms/inter",
-                    "Jetpack Compose" to "androidx/androidx",
+                    AboutRow("MiuiX for Compose", "compose-miuix-ui/miuix", AboutIcon.External),
+                    AboutRow("Material Symbols", "google/material-design-icons", AboutIcon.External),
+                    AboutRow("Inter", "rsms/inter", AboutIcon.External),
+                    AboutRow("Jetpack Compose", "androidx/androidx", AboutIcon.External),
+                    AboutRow("Kotlin", "JetBrains/kotlin", AboutIcon.External),
+                    AboutRow("Gradle", "gradle/gradle", AboutIcon.External),
                 ),
             )
             Spacer(Modifier.height(16.dp))
             AboutCard(
                 dark,
                 listOf(
-                    "开源许可" to "Apache-2.0",
-                    "第三方许可" to "",
+                    AboutRow("开源许可", "Apache-2.0", AboutIcon.Chevron),
+                    AboutRow("第三方许可", "", AboutIcon.Chevron),
                 ),
             )
         }
     }
 }
 
+private enum class AboutIcon { None, Chevron, External }
+
+private data class AboutRow(val label: String, val value: String = "", val icon: AboutIcon = AboutIcon.Chevron)
+
 @Composable
-private fun AboutCard(dark: Boolean, rows: List<Pair<String, String>>) {
+private fun AboutCard(dark: Boolean, rows: List<AboutRow>) {
     val bg = if (dark) Color(0x17FFFFFF) else Color(0xB8FFFFFF)
     val fg = if (dark) Color(0xFFECE9FF) else Color(0xFF1B1633)
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(bg)) {
-        rows.forEach { (label, value) ->
+        rows.forEach { row ->
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 18.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(label, color = fg, fontFamily = AppTheme.font, fontSize = 16.sp, fontWeight = W.bold, modifier = Modifier.weight(1f))
-                if (value.isNotEmpty()) {
-                    Text(value, color = fg.copy(alpha = 0.55f), fontFamily = AppTheme.font, fontSize = 14.sp, fontWeight = W.semi)
+                Text(row.label, color = fg, fontFamily = AppTheme.font, fontSize = 16.sp, lineHeight = normalLine(16), fontWeight = W.bold, modifier = Modifier.weight(1f))
+                if (row.value.isNotEmpty()) {
+                    Text(row.value, color = fg.copy(alpha = 0.55f), fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14), fontWeight = W.semi, textAlign = TextAlign.End)
                 }
-                Spacer(Modifier.width(8.dp))
-                Symbol("chevron_right", 22.dp, fg.copy(alpha = 0.42f))
+                when (row.icon) {
+                    AboutIcon.None -> {}
+                    AboutIcon.Chevron -> Symbol("chevron_right", 22.dp, fg.copy(alpha = 0.42f))
+                    AboutIcon.External -> Symbol("open_in_new", 22.dp, fg.copy(alpha = 0.42f))
+                }
             }
         }
     }

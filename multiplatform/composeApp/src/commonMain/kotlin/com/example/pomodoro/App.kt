@@ -3,8 +3,12 @@ package com.example.pomodoro
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,7 +23,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -37,12 +43,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +69,7 @@ import com.example.pomodoro.ui.TimerPage
 import com.example.pomodoro.ui.ToastBar
 import com.example.pomodoro.ui.TodosPage
 import kotlinx.coroutines.delay
+import kotlin.math.floor
 
 /** Miuix NavTransitions.MiuixDefault 的近似曲线（与网页 --nav-ease 同源） */
 private val NavEase = CubicBezierEasing(0.4f, 1.2f, 0.95f, 0.97f)
@@ -156,34 +167,65 @@ fun App(state: State, isDark: Boolean = isSystemInDarkTheme(), showSplash: Boole
     }
 }
 
-/** 极光主题的渐变背景层（radial 叠加 + 135° 线性底色，与网页 .aurora-bg 一致） */
+/**
+ * 极光主题背景层：对应网页 `.aurora-bg > i` —— 180% 画布、四个椭圆径向光斑 + 135° 线性底，
+ * 整体按 `auroraDrift`（26s、steps(130)）x/y 漂移；外层裁切出视口。
+ * 光斑参数逐项对应 CSS：`radial-gradient(58% 58% at 18% 22%, rgba(124,77,255,.6), transparent 62%)` 等。
+ */
 @Composable
 private fun AuroraBackground() {
-    androidx.compose.foundation.Canvas(Modifier.fillMaxSize()) {
-        val w = size.width
-        val h = size.height
-        drawRect(
-            Brush.linearGradient(
-                colors = listOf(Color(0xFF080A1C), Color(0xFF14102E), Color(0xFF0B1030)),
-                start = androidx.compose.ui.geometry.Offset(0f, 0f),
-                end = androidx.compose.ui.geometry.Offset(w, h),
-            ),
-        )
-        fun glow(fx: Float, fy: Float, radius: Float, color: Color) {
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(color, Color.Transparent),
-                    center = androidx.compose.ui.geometry.Offset(w * fx, h * fy),
-                    radius = radius,
+    val inf = rememberInfiniteTransition(label = "aurora")
+    val phase by inf.animateFloat(
+        0f, 1f,
+        infiniteRepeatable(tween(26_000, easing = LinearEasing)),
+        label = "drift",
+    )
+    // steps(130, end)：离散化后按 0%→50%→100% 的两段线性往返（与 @keyframes auroraDrift 等价）
+    val stepped = floor(phase.coerceIn(0f, 0.9999f) * 130f) / 130f
+    val s = if (stepped < 0.5f) stepped / 0.5f else (1f - stepped) / 0.5f
+    val tx = -44.4444f * s / 100f
+    val ty = (-8.8889f - 26.6667f * s) / 100f
+
+    BoxWithConstraints(Modifier.fillMaxSize().clipToBounds()) {
+        val w = maxWidth
+        val h = maxHeight
+        val lw = w * 1.8f
+        val lh = h * 1.8f
+        // 整层是一个 180% 画布的 Canvas（requiredSize 不受父约束压缩），漂移直接作用在画布上
+        Canvas(
+            Modifier
+                .offset(x = lw * tx, y = lh * ty)
+                .requiredSize(lw, lh),
+        ) {
+            drawRect(
+                Brush.linearGradient(
+                    0f to Color(0xFF080A1C),
+                    0.52f to Color(0xFF14102E),
+                    1f to Color(0xFF0B1030),
+                    start = Offset.Zero,
+                    end = Offset(size.width, size.height),
                 ),
-                radius = radius,
-                center = androidx.compose.ui.geometry.Offset(w * fx, h * fy),
             )
+            // 椭圆光斑：在 (cx,cy) 处以 rx 为半径画圆，再纵向压扁到 ry（pivot 在圆心）
+            fun blob(fx: Float, fy: Float, r: Float, color: Color) {
+                val cx = size.width * fx
+                val cy = size.height * fy
+                val rx = size.width * r
+                val ry = size.height * r
+                withTransform({ scale(1f, ry / rx, pivot = Offset(cx, cy)) }) {
+                    drawCircle(
+                        // 停靠点用同色 alpha=0（与 CSS 预乘插值等价）
+                        Brush.radialGradient(0f to color, 0.62f to color.copy(alpha = 0f), center = Offset(cx, cy), radius = rx),
+                        radius = rx,
+                        center = Offset(cx, cy),
+                    )
+                }
+            }
+            blob(0.18f, 0.22f, 0.58f, Color(0x997C4DFF))   // rgba(124,77,255,.6)
+            blob(0.82f, 0.16f, 0.48f, Color(0x6B00BCD4))   // rgba(0,188,212,.42)
+            blob(0.72f, 0.82f, 0.52f, Color(0x803482FF))   // rgba(52,130,255,.5)
+            blob(0.26f, 0.84f, 0.46f, Color(0x5CEC4899))   // rgba(236,72,153,.36)
         }
-        glow(0.18f, 0.22f, w * 0.9f, Color(0x997C4DFF))
-        glow(0.82f, 0.16f, w * 0.75f, Color(0x6B00BCD4))
-        glow(0.72f, 0.82f, w * 0.85f, Color(0x803482FF))
-        glow(0.26f, 0.84f, w * 0.72f, Color(0x5CEC4899))
     }
 }
 
@@ -232,12 +274,16 @@ private fun RailLeft(state: State) {
         Modifier
             .width(88.dp)
             .fillMaxHeight()
-            .background(c.surface.copy(alpha = 0.58f))
+            // color-mix(surface 58%) = alpha×0.58（极光下 surface 自身是 7% 白）
+            .background(c.surface.copy(alpha = c.surface.alpha * 0.58f))
+            .drawBehind {
+                val sw = 1.dp.toPx()
+                drawRect(c.divider, topLeft = Offset(size.width - sw, 0f), size = Size(sw, size.height))
+            }
             .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Page.entries.forEach { p -> RailItem(p, state.page == p) { state.page = p } }
+    ) {        Page.entries.forEach { p -> RailItem(p, state.page == p, Modifier.width(64.dp)) { state.page = p } }
         Spacer(Modifier.weight(1f))
         Box(
             Modifier
@@ -256,7 +302,7 @@ private fun RailBottom(state: State) {
     Row(
         Modifier
             .fillMaxWidth()
-            .background(c.surface.copy(alpha = 0.55f))
+            .background(c.surface.copy(alpha = c.surface.alpha * 0.55f))
             .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceAround,
     ) {
@@ -282,7 +328,7 @@ private fun RailItem(page: Page, active: Boolean, modifier: Modifier = Modifier,
             Symbol(page.icon, 26.dp, if (active) c.primary else c.variant)
         }
         Spacer(Modifier.height(6.dp))
-        Text(page.label, color = if (active) c.primary else c.variant, fontFamily = AppTheme.font, fontSize = 12.sp, fontWeight = W.semi)
+        Text(page.label, color = if (active) c.primary else c.variant, fontFamily = AppTheme.font, fontSize = 12.sp, lineHeight = normalLine(12), fontWeight = W.semi)
     }
 }
 
@@ -336,9 +382,9 @@ private fun Topbar(state: State) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column(Modifier.weight(1f)) {
-                Text(state.page.title, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 26.sp, fontWeight = W.extra, letterSpacing = (-0.5).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(state.page.title, color = c.onSurface, fontFamily = AppTheme.font, fontSize = 26.sp, lineHeight = normalLine(26), fontWeight = W.extra, letterSpacing = (-0.5).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(2.dp))
-                Text(state.page.subtitle, color = c.variant, fontFamily = AppTheme.font, fontSize = 13.sp)
+                Text(state.page.subtitle, color = c.variant, fontFamily = AppTheme.font, fontSize = 13.sp, lineHeight = normalLine(13))
             }
             IconBtn(if (c.dark) "light_mode" else "dark_mode") { state.cycleTheme(c.dark) }
         }

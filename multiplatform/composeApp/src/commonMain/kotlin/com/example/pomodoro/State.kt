@@ -190,8 +190,10 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
             TimerMode.Long -> longMinutes
         }
 
-    /** 当前长休息周期内已完成的专注轮数（圆点用） */
-    val cycleDone: Int get() = completedSessions % sessionsBeforeLong
+    /** 当前长休息周期内已完成的专注轮数（圆点用，与网页 updateDots 的 doneCount 一致） */
+    val cycleDone: Int
+        get() = if (completedSessions > 0 && completedSessions % sessionsBeforeLong == 0) sessionsBeforeLong
+        else completedSessions % sessionsBeforeLong
 
     val untilLong: Int get() = sessionsBeforeLong - cycleDone
 
@@ -347,7 +349,7 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
     fun addTodo(text: String) {
         val t = text.trim()
         if (t.isEmpty()) return
-        todos.add(0, TodoItem(t))
+        todos.add(TodoItem(t))
         saveTodos()
     }
 
@@ -462,6 +464,13 @@ class State(private val storage: SettingsStorage = NoOpStorage) {
         saveSettings()
         saveDays()
         saveTodos()
+    }
+
+    /** 仅供截图/演示：构造一个指定进度的计时状态（不写存储、不触发完成逻辑） */
+    fun debugTimerState(remaining: Int, running: Boolean = false, cycle: Int = 0) {
+        secondsLeft = remaining
+        this.running = running
+        completedSessions = cycle
     }
 
     /** 跨天：把统计切到新的一天（对应网页 ensureToday） */

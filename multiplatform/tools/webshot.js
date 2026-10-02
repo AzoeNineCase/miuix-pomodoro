@@ -123,10 +123,19 @@ async function main() {
     width: W, height: H, deviceScaleFactor: DPR, mobile: false,
   }, sessionId);
 
-  // 预置主题 + 清空数据（在页面脚本运行前写入）
+  // 预置主题 + 清空数据（在页面脚本运行前写入）；page 支持特殊状态：
+  //   running（计时运行中）、todos-items（带待办）、about（关于页）
+  const basePage = page === 'running' ? 'timer' : page === 'todos-items' ? 'todos' : page === 'about' ? 'settings' : page;
   const settings = JSON.stringify({ theme, focusMinutes: 25, shortMinutes: 5, longMinutes: 15 });
+  const presetTodos = page === 'todos-items'
+    ? `localStorage.setItem('pomodoro.miuix.todos', ${JSON.stringify(JSON.stringify([
+        { text: '读完《重构》第 3 章', done: true },
+        { text: '写周报', done: false },
+        { text: '晚上跑步 5km', done: false },
+      ]))});`
+    : '';
   await send('Page.addScriptToEvaluateOnNewDocument', {
-    source: `try{localStorage.clear();localStorage.setItem('pomodoro.miuix.settings', ${JSON.stringify(settings)});}catch(e){}`,
+    source: `try{localStorage.clear();localStorage.setItem('pomodoro.miuix.settings', ${JSON.stringify(settings)});${presetTodos}}catch(e){}`,
   }, sessionId);
 
   await send('Page.navigate', { url: 'http://127.0.0.1:8123/shot.html' }, sessionId);
@@ -144,10 +153,38 @@ async function main() {
     await sleep(300);
   }
   // 切页
-  if (page !== 'timer') {
-    await evalJs(`document.querySelector('.rail-item[data-page="${page}"]')?.click()`);
+  if (basePage !== 'timer') {
+    await evalJs(`document.querySelector('.rail-item[data-page="${basePage}"]')?.click()`);
+    await sleep(700);
   }
-  await sleep(1400); // 等入场动画结束
+  if (page === 'about') {
+    await evalJs(`document.getElementById('aboutEntry')?.click()`);
+    await sleep(900);
+  } else if (page === 'running') {
+    // 伪造「专注进行中、剩 11:27、本周期已完成 2 轮」的界面状态（与原生 debugTimerState 对应）
+    await evalJs(`(() => {
+      remaining = 687; total = 1500; running = true; endAt = Date.now() + remaining * 1000;
+      completedSessions = 2;
+      document.getElementById('timerRing').classList.add('running');
+      document.getElementById('startText').textContent = '暂停';
+      document.getElementById('startIcon').textContent = 'pause';
+      document.getElementById('startBtn').classList.add('running');
+      updateTime(); updateRing(); updateDots();
+    })()`);
+    await sleep(400);
+  } else {
+    await sleep(1400); // 等入场动画结束
+  }
+
+  // 极光背景漂移与原生截图对齐：steps(130) 冻结在第 2 步（原生 30 帧 = 480ms 时的相位；
+  // 换算见 index.html @keyframes auroraDrift 注释）
+  if (theme === 'aurora') {
+    await evalJs(`(() => {
+      const i = document.querySelector('.aurora-bg > i');
+      if (i) { i.style.animation = 'none'; i.style.transform = 'translate3d(-1.3675%, -9.7094%, 0)'; }
+    })()`);
+    await sleep(150);
+  }
 
   const fontInfo = await evalJs(`(function(){
     const el = document.querySelector('.material-symbols-rounded');

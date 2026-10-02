@@ -34,22 +34,45 @@ fun main(args: Array<String>) {
     val height = args.getOrNull(2)?.toIntOrNull() ?: 1600
     val density = args.getOrNull(3)?.toFloatOrNull() ?: 2f
 
-    val cases = listOf(
-        Triple("desktop-timer-dark", Page.Timer, "dark"),
-        Triple("desktop-timer-light", Page.Timer, "light"),
-        Triple("desktop-timer-aurora", Page.Timer, "aurora"),
-        Triple("desktop-stats-dark", Page.Stats, "dark"),
-        Triple("desktop-todos-light", Page.Todos, "light"),
-        Triple("desktop-settings-light", Page.Settings, "light"),
-        Triple("desktop-settings-dark", Page.Settings, "dark"),
+    // 每个用例：页面 + 主题 +（可选）状态构造（运行中 / 有待办 / 关于页…），
+    // 与 tools/webshot.js 的注入状态一一对应
+    data class Case(
+        val name: String,
+        val page: Page,
+        val theme: String,
+        val frames: Int = 30,
+        val setup: (State) -> Unit = {},
     )
 
-    cases.forEach { (name, page, theme) ->
+    val cases = listOf(
+        Case("desktop-timer-dark", Page.Timer, "dark"),
+        Case("desktop-timer-light", Page.Timer, "light"),
+        Case("desktop-timer-aurora", Page.Timer, "aurora"),
+        Case("desktop-timer-running", Page.Timer, "dark") { it.debugTimerState(remaining = 687, running = true, cycle = 2) },
+        Case("desktop-stats-dark", Page.Stats, "dark"),
+        Case("desktop-stats-light", Page.Stats, "light"),
+        Case("desktop-todos-light", Page.Todos, "light"),
+        Case("desktop-todos-dark", Page.Todos, "dark"),
+        Case("desktop-todos-items", Page.Todos, "light") {
+            it.addTodo("读完《重构》第 3 章")
+            it.addTodo("写周报")
+            it.addTodo("晚上跑步 5km")
+            it.toggleTodo(0)
+        },
+        Case("desktop-settings-light", Page.Settings, "light"),
+        Case("desktop-settings-dark", Page.Settings, "dark"),
+        Case("desktop-about-light", Page.Timer, "light", frames = 45) { it.showAbout = true },
+    )
+
+    cases.forEach { case ->
         val state = State(NoOpStorage)
-        state.page = page
-        state.theme = theme
-        renderToFile(File(outDir, "$name.png"), width, height, density) { App(state, theme != "light", showSplash = false) }
-        println("saved $name.png")
+        state.page = case.page
+        state.theme = case.theme
+        case.setup(state)
+        renderToFile(File(outDir, "${case.name}.png"), width, height, density, frames = case.frames) {
+            App(state, case.theme != "light", showSplash = false)
+        }
+        println("saved ${case.name}.png")
     }
 
     // 自定义背景图用例：用 data:image PNG（离线可复现）预载，验证「下载 → 解码 → 图层」全链路
