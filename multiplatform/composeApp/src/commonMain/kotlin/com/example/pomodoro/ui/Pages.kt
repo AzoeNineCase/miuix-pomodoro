@@ -370,9 +370,9 @@ fun TodosPage(state: State) {
                 textStyle = TextStyle(color = c.onSurface, fontSize = 14.sp, lineHeight = normalLine(14), fontFamily = AppTheme.font),
                 modifier = Modifier.weight(1f),
                 decorationBox = { inner ->
-                    // .bg-input：padding 12/14 + 1px divider 描边 + radius 14（高度由行盒撑）
+                    // .bg-input：padding 12/14 + 1px divider 描边 + radius 14；border-box → 内容从 13/15 开始
                     Box(
-                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.containerHigh).border(1.dp, c.divider, RoundedCornerShape(14.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.containerHigh).border(1.dp, c.divider, RoundedCornerShape(14.dp)).padding(horizontal = 15.dp, vertical = 13.dp),
                         contentAlignment = Alignment.CenterStart,
                     ) {
                         if (input.isEmpty()) Text("添加一个待办，回车确认...", color = c.variant, fontFamily = AppTheme.font, fontSize = 14.sp, lineHeight = normalLine(14))
@@ -416,7 +416,9 @@ private fun TodoRow(todo: TodoItem, onToggle: () -> Unit, onDelete: () -> Unit) 
             .clip(RoundedCornerShape(14.dp))
             // [data-bg-active]：.todo-item 底色 52%
             .background(glassDim(c.surface, 0.52f))
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            // 网页 .todo-item 有 1px divider 描边（border-box → 内容从 13/15 开始，行高 50）
+            .border(1.dp, c.divider, RoundedCornerShape(14.dp))
+            .padding(horizontal = 15.dp, vertical = 13.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
